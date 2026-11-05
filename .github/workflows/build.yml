@@ -1,0 +1,42 @@
+name: Build APK
+on:
+  push:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - name: Build
+        shell: bash
+        run: |
+          chmod +x gradlew
+          set -o pipefail
+          ./gradlew assembleDebug --stacktrace 2>&1 | tee build.log
+      - name: Errors summary
+        if: failure()
+        shell: bash
+        run: |
+          { echo '### Ошибки сборки'; echo '```'; grep -E "^e: |error:|What went wrong|Execution failed" -A4 build.log | head -120; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with: { name: build-log, path: build.log }
+      - name: Prepare APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk List.apk
+      - name: Move tag
+        run: git tag -f latest && git push -f origin latest
+      - name: Publish APK to Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Лист, последняя сборка
+          body: "Скачайте List.apk и установите на телефон. Сборка из коммита ${{ github.sha }}"
+          files: List.apk
+          prerelease: false
+          make_latest: true
+          overwrite_files: true

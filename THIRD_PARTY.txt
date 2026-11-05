@@ -1,0 +1,8 @@
+Встроенные открытые библиотеки (лежат в app/src/main/assets/lib):
+docx-preview (Apache-2.0), mammoth (BSD-2-Clause), SheetJS xlsx 0.18.5 (Apache-2.0), pptx-preview (MIT),
+JSZip (MIT), marked (MIT), DOMPurify (Apache-2.0/MPL-2.0), 7-Zip WASM (LGPL-2.1 + ограничение unRAR, см. LICENSES).
+Android: Jetpack Compose, Media3, Coil, androidx.webkit (Apache-2.0).
+
+Движок конвертации старых форматов: x2t из ONLYOFFICE Document Server (AGPL-3.0), сборка в WebAssembly от CryptPad:
+https://github.com/cryptpad/onlyoffice-x2t-wasm . Исходный код: https://github.com/ONLYOFFICE/core
+Если вы распространяете приложение другим людям, лицензия AGPL требует предоставить им исходный код всего приложения.
