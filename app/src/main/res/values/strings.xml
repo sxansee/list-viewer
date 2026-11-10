@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">List</string>
+    <!-- Language of the messages inside the built-in web viewer (assets/viewer.js knows "en" and "ru"). -->
+    <string name="web_lang">en</string>
+
+    <!-- Home -->
+    <string name="open_file">Open file</string>
+    <string name="choose_file">Choose a file</string>
+    <string name="empty_title">Open your first file</string>
+    <string name="empty_body">PDF, Word, Excel, PowerPoint, HTML, books, archives, images, audio and video. Everything opens right inside the app.</string>
+    <string name="empty_offline">Works offline. Your files never leave the device.</string>
+    <string name="search_hint">Search recent files</string>
+    <string name="no_results">Nothing found</string>
+    <string name="no_results_hint">Try another name or pick a different file type.</string>
+    <string name="filter_all">All</string>
+    <string name="clear">Clear</string>
+    <string name="section_today">Today</string>
+    <string name="section_yesterday">Yesterday</string>
+    <string name="section_week">This week</string>
+    <string name="section_earlier">Earlier</string>
+    <string name="menu_clear_list">Clear list</string>
+    <string name="menu_about">About List</string>
+    <string name="clear_title">Clear the list?</string>
+    <string name="clear_body">Only the list is cleared. The files themselves stay where they are.</string>
+    <string name="removed">Removed from the list</string>
+    <string name="undo">Undo</string>
+    <string name="file_unavailable">File not found. It may have been moved or deleted.</string>
+    <string name="file_unavailable_short">File not found</string>
+    <string name="remove">Remove</string>
+    <string name="cancel">Cancel</string>
+    <string name="close">Close</string>
+
+    <!-- About -->
+    <string name="about_version">Version %1$s</string>
+    <string name="about_body">A small open-source viewer that opens documents, spreadsheets, presentations, books, archives and media on the device, with no cloud and no account.</string>
+    <string name="about_license">Licensed under AGPL-3.0. Third-party components are listed in THIRD_PARTY.txt.</string>
+
+    <!-- File actions -->
+    <string name="action_share">Share</string>
+    <string name="action_open_external">Open in another app</string>
+    <string name="action_remove_from_list">Remove from the list</string>
+    <string name="action_details">Details</string>
+    <string name="action_load_online">Load content from the internet</string>
+    <string name="action_load_online_off">Stop loading from the internet</string>
+    <string name="chooser_open">Open with</string>
+    <string name="toast_no_app">No app found that can open this file</string>
+    <string name="toast_share_failed">Couldn\'t share the file</string>
+
+    <!-- Accessibility -->
+    <string name="cd_back">Back</string>
+    <string name="cd_more">More options</string>
+    <string name="cd_search">Search in document</string>
+    <string name="cd_clear_search">Clear search</string>
+    <string name="cd_logo">List logo</string>
+
+    <!-- Details dialog -->
+    <string name="detail_name">Name</string>
+    <string name="detail_type">Type</string>
+    <string name="detail_format">Format</string>
+    <string name="detail_size">Size</string>
+    <string name="detail_unknown">Unknown</string>
+
+    <!-- Search inside a document -->
+    <string name="find_hint">Find in document</string>
+    <string name="find_prev">Previous match</string>
+    <string name="find_next">Next match</string>
+    <string name="find_close">Close search</string>
+
+    <!-- Errors -->
+    <string name="pdf_error_title">Couldn\'t open this PDF</string>
+    <string name="pdf_error_body">The file may be damaged or protected by a password. You can try another app.</string>
+    <string name="image_error_title">Couldn\'t open this image</string>
+    <string name="image_error_body">The file may be damaged, or its format may not be supported on this device. You can try another app.</string>
+    <string name="missing_body">It may have been moved or deleted, or access to it was withdrawn. Open the file again from its folder.</string>
+    <string name="page_counter" translatable="false">%1$d / %2$d</string>
+
+    <!-- File categories (long) -->
+    <string name="cat_pdf">PDF document</string>
+    <string name="cat_doc">Document</string>
+    <string name="cat_sheet">Spreadsheet</string>
+    <string name="cat_slide">Presentation</string>
+    <string name="cat_img">Image</string>
+    <string name="cat_media">Audio or video</string>
+    <string name="cat_web">Web page</string>
+    <string name="cat_text">Text or code</string>
+    <string name="cat_book">Book</string>
+    <string name="cat_zip">Archive</string>
+    <string name="cat_other">File</string>
+
+    <!-- File categories (short, for filter chips) -->
+    <string name="chip_pdf">PDF</string>
+    <string name="chip_doc">Documents</string>
+    <string name="chip_sheet">Spreadsheets</string>
+    <string name="chip_slide">Presentations</string>
+    <string name="chip_img">Images</string>
+    <string name="chip_media">Media</string>
+    <string name="chip_web">Web</string>
+    <string name="chip_text">Text</string>
+    <string name="chip_book">Books</string>
+    <string name="chip_zip">Archives</string>
+    <string name="chip_other">Other</string>
+</resources>

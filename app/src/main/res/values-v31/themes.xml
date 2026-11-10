@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 12+ system splash screen: brand background behind the launcher icon. -->
+    <style name="Theme.List" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/list_background</item>
+        <item name="android:colorBackground">@color/list_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowSplashScreenBackground">@color/list_background</item>
+    </style>
+</resources>

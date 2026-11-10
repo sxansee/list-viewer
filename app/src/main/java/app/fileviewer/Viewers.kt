@@ -5,10 +5,14 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.pdf.PdfRenderer
 import android.net.Uri
+import android.os.ParcelFileDescriptor
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -18,29 +22,56 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
@@ -49,7 +80,10 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import androidx.webkit.WebViewAssetLoader
 import coil.compose.AsyncImage
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -71,23 +105,54 @@ fun PdfView(uri: Uri) {
     var err by remember(uri) { mutableStateOf(false) }
     var zoom by remember(uri) { mutableFloatStateOf(1f) }
     var live by remember(uri) { mutableFloatStateOf(1f) }
+    var pill by remember(uri) { mutableStateOf(true) }
     val lock = remember(uri) { Mutex() }
     val list = rememberLazyListState()
     val hs = rememberScrollState()
     val cur by remember { derivedStateOf { list.firstVisibleItemIndex + 1 } }
+    // The page counter is shown while the document is being scrolled and fades out a moment later.
+    LaunchedEffect(list.isScrollInProgress) {
+        if (list.isScrollInProgress) {
+            pill = true
+        } else {
+            delay(1500)
+            pill = false
+        }
+    }
     DisposableEffect(uri) {
         var r: PdfRenderer? = null
+        var fd: ParcelFileDescriptor? = null
         try {
-            r = PdfRenderer(ctx.contentResolver.openFileDescriptor(uri, "r")!!)
+            fd = ctx.contentResolver.openFileDescriptor(uri, "r")
+            r = PdfRenderer(fd!!)
             pdf = r
-        } catch (e: Exception) { err = true }
-        onDispose { pdf = null; try { r?.close() } catch (e: Exception) { } }
+        } catch (e: Exception) {
+            err = true
+            // The renderer owns the descriptor only once it has been created.
+            try { fd?.close() } catch (x: Exception) { }
+        }
+        onDispose {
+            pdf = null
+            val done = r
+            // A page that is still being drawn holds the lock, so the renderer is closed after it lets go.
+            CoroutineScope(Dispatchers.IO).launch {
+                lock.withLock { try { done?.close() } catch (e: Exception) { } }
+            }
+        }
     }
     val p = pdf
     if (err) {
-        Text("Не удалось открыть PDF. Возможно, файл повреждён или защищён паролем.", Modifier.padding(24.dp))
+        MessageState(
+            iconRes = R.drawable.ic_warning,
+            title = stringResource(R.string.pdf_error_title),
+            body = stringResource(R.string.pdf_error_body)
+        ) {
+            OutlinedButton(onClick = { openExternal(ctx, uri, "application/pdf") }) {
+                Text(stringResource(R.string.action_open_external))
+            }
+        }
     } else if (p != null) {
-        BoxWithConstraints(Modifier.fillMaxSize()) {
+        BoxWithConstraints(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceContainerHigh)) {
             val d = LocalDensity.current
             val base = with(d) { maxWidth.roundToPx() }
             Box(
@@ -117,15 +182,23 @@ fun PdfView(uri: Uri) {
                         items(p.pageCount) { i -> PdfPage(p, i, minOf((base * zoom).toInt(), 2000), lock) }
                     }
                 }
-                Surface(
-                    Modifier.align(Alignment.BottomCenter).padding(16.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.85f)
+                AnimatedVisibility(
+                    visible = pill,
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp),
+                    enter = fadeIn(),
+                    exit = fadeOut()
                 ) {
-                    Text(
-                        "$cur / ${p.pageCount}", Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        color = MaterialTheme.colorScheme.inverseOnSurface, style = MaterialTheme.typography.labelLarge
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.88f)
+                    ) {
+                        Text(
+                            stringResource(R.string.page_counter, cur, p.pageCount),
+                            Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                            color = MaterialTheme.colorScheme.inverseOnSurface,
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
                 }
             }
         }
@@ -149,42 +222,63 @@ fun PdfPage(pdf: PdfRenderer, i: Int, w: Int, lock: Mutex) {
                     } finally { pg.close() }
                 }
             }
-        } catch (e: Exception) { null }
+        } catch (e: Exception) { null } catch (e: OutOfMemoryError) { null }
         if (r != null) bmp = r
     }
     val b = bmp
-    if (b != null) Image(b.asImageBitmap(), null, Modifier.fillMaxWidth(), contentScale = ContentScale.FillWidth)
-    else Box(Modifier.fillMaxWidth().height(420.dp).background(MaterialTheme.colorScheme.surfaceVariant))
+    val page = Modifier.fillMaxWidth().shadow(2.dp, RoundedCornerShape(3.dp))
+    if (b != null) Image(b.asImageBitmap(), null, page, contentScale = ContentScale.FillWidth)
+    else Box(page.height(420.dp).background(Color.White))
 }
 
-/* ---------- Картинки ---------- */
+/* ---------- Images ---------- */
 
 @Composable
-fun ZoomImage(uri: Uri) {
-    var s by remember { mutableFloatStateOf(1f) }
-    var o by remember { mutableStateOf(Offset.Zero) }
-    AsyncImage(
-        model = uri, contentDescription = null,
-        modifier = Modifier.fillMaxSize()
-            .pointerInput(Unit) {
-                detectTapGestures(onDoubleTap = { if (s > 1f) { s = 1f; o = Offset.Zero } else { s = 2.5f } })
+fun ZoomImage(uri: Uri, mime: String) {
+    val ctx = LocalContext.current
+    var s by remember(uri) { mutableFloatStateOf(1f) }
+    var o by remember(uri) { mutableStateOf(Offset.Zero) }
+    var failed by remember(uri) { mutableStateOf(false) }
+    if (failed) {
+        MessageState(
+            iconRes = R.drawable.ic_warning,
+            title = stringResource(R.string.image_error_title),
+            body = stringResource(R.string.image_error_body)
+        ) {
+            OutlinedButton(onClick = { openExternal(ctx, uri, mime) }) {
+                Text(stringResource(R.string.action_open_external))
             }
-            .pointerInput(Unit) {
-                detectTransformGestures { _, pan, zoom, _ ->
-                    s = (s * zoom).coerceIn(1f, 8f)
-                    o = if (s == 1f) Offset.Zero else o + pan
+        }
+    } else {
+        AsyncImage(
+            model = uri, contentDescription = null,
+            modifier = Modifier.fillMaxSize()
+                .pointerInput(Unit) {
+                    detectTapGestures(onDoubleTap = { if (s > 1f) { s = 1f; o = Offset.Zero } else { s = 2.5f } })
                 }
-            }
-            .graphicsLayer(scaleX = s, scaleY = s, translationX = o.x, translationY = o.y),
-        contentScale = ContentScale.Fit
-    )
+                .pointerInput(Unit) {
+                    detectTransformGestures { _, pan, zoom, _ ->
+                        val ns = (s * zoom).coerceIn(1f, 8f)
+                        // The picture can be moved only as far as its enlarged edges.
+                        val mx = size.width * (ns - 1f) / 2f
+                        val my = size.height * (ns - 1f) / 2f
+                        s = ns
+                        o = if (ns == 1f) Offset.Zero
+                        else Offset((o.x + pan.x).coerceIn(-mx, mx), (o.y + pan.y).coerceIn(-my, my))
+                    }
+                }
+                .graphicsLayer(scaleX = s, scaleY = s, translationX = o.x, translationY = o.y),
+            contentScale = ContentScale.Fit,
+            onError = { failed = true }
+        )
+    }
 }
 
-/* ---------- Аудио и видео ---------- */
+/* ---------- Audio and video ---------- */
 
 @OptIn(UnstableApi::class)
 @Composable
-fun MediaView(uri: Uri) {
+fun MediaView(uri: Uri, video: Boolean) {
     val ctx = LocalContext.current
     val player = remember(uri) {
         ExoPlayer.Builder(ctx).build().apply {
@@ -199,14 +293,15 @@ fun MediaView(uri: Uri) {
         factory = { c ->
             PlayerView(c).apply {
                 this.player = player
-                controllerShowTimeoutMs = 0
-                controllerHideOnTouch = false
+                // Audio keeps its controls on screen; video hides them after a few seconds and shows them on touch.
+                controllerShowTimeoutMs = if (video) 3000 else 0
+                controllerHideOnTouch = video
             }
         }
     )
 }
 
-/* ---------- Всё остальное: встроенный веб-просмотрщик ---------- */
+/* ---------- Everything else: the built-in web viewer ---------- */
 
 private fun status(code: Int, why: String): WebResourceResponse =
     WebResourceResponse("text/plain", "utf-8", code, why, emptyMap<String, String>(), ByteArrayInputStream(ByteArray(0)))
@@ -241,6 +336,14 @@ private fun docResponse(c: Context, uri: Uri, info: Info, path: String): WebReso
 @Composable
 fun WebDoc(uri: Uri, info: Info, net: AtomicBoolean, holder: WebHolder, onFind: (String) -> Unit) {
     val dark = if (isSystemInDarkTheme()) 1 else 0
+    // "en" or "ru": the language of the messages inside the viewer page, taken from the same resources as the app UI.
+    val lang = stringResource(R.string.web_lang)
+    // Seen only until the page paints, so a dark theme does not flash white.
+    val bg = MaterialTheme.colorScheme.background.toArgb()
+    // The page colours are CSS variables switched by the class "d" on <html>, so a theme change needs no reload.
+    LaunchedEffect(dark) {
+        if (info.route == Route.WEB) holder.view?.evaluateJavascript("document.documentElement.classList.toggle('d', $dark === 1)", null)
+    }
     DisposableEffect(uri) { onDispose { holder.view?.destroy(); holder.view = null } }
     AndroidView(
         modifier = Modifier.fillMaxSize(),
@@ -251,6 +354,7 @@ fun WebDoc(uri: Uri, info: Info, net: AtomicBoolean, holder: WebHolder, onFind: 
                 .build()
             WebView(c).apply {
                 holder.view = this
+                setBackgroundColor(bg)
                 settings.javaScriptEnabled = true
                 settings.domStorageEnabled = true
                 settings.allowFileAccess = false
@@ -285,20 +389,24 @@ fun WebDoc(uri: Uri, info: Info, net: AtomicBoolean, holder: WebHolder, onFind: 
                     }
                 }
                 val url = if (info.route == Route.HTML) "https://$HOST/doc/file"
-                else "https://$HOST/assets/viewer.html?ext=${Uri.encode(info.ext)}&d=$dark"
+                else "https://$HOST/assets/viewer.html?ext=${Uri.encode(info.ext)}&d=$dark&l=${Uri.encode(lang)}"
                 loadUrl(url)
             }
         }
     )
 }
 
+/** The search row under the top bar: the query, the match counter ("3/12"), previous / next and close. */
 @Composable
 fun FindBar(h: WebHolder, info: String, close: () -> Unit) {
     var q by remember { mutableStateOf("") }
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { focus.requestFocus() }
-    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-        OutlinedTextField(
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        TextField(
             value = q,
             onValueChange = {
                 q = it
@@ -306,11 +414,30 @@ fun FindBar(h: WebHolder, info: String, close: () -> Unit) {
             },
             modifier = Modifier.weight(1f).focusRequester(focus),
             singleLine = true,
-            placeholder = { Text("Найти в документе") },
-            trailingIcon = { Text(info, Modifier.padding(end = 12.dp), style = MaterialTheme.typography.labelMedium) }
+            shape = RoundedCornerShape(28.dp),
+            placeholder = { Text(stringResource(R.string.find_hint)) },
+            trailingIcon = {
+                if (q.isNotEmpty() && info.isNotEmpty()) {
+                    Text(info, Modifier.padding(end = 14.dp), style = MaterialTheme.typography.labelMedium)
+                }
+            },
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { h.view?.findNext(true) }),
+            colors = TextFieldDefaults.colors(
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+                disabledIndicatorColor = Color.Transparent,
+                errorIndicatorColor = Color.Transparent
+            )
         )
-        IconButton(onClick = { h.view?.findNext(false) }) { Icon(Icons.Default.KeyboardArrowUp, "Предыдущее совпадение") }
-        IconButton(onClick = { h.view?.findNext(true) }) { Icon(Icons.Default.KeyboardArrowDown, "Следующее совпадение") }
-        IconButton(onClick = { h.view?.clearMatches(); close() }) { Icon(Icons.Default.Close, "Закрыть поиск") }
+        IconButton(onClick = { h.view?.findNext(false) }) {
+            Ico(R.drawable.ic_chevron_up, stringResource(R.string.find_prev))
+        }
+        IconButton(onClick = { h.view?.findNext(true) }) {
+            Ico(R.drawable.ic_chevron_down, stringResource(R.string.find_next))
+        }
+        IconButton(onClick = { h.view?.clearMatches(); close() }) {
+            Ico(R.drawable.ic_close, stringResource(R.string.find_close))
+        }
     }
 }

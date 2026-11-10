@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="web_lang">ru</string>
+
+    <!-- Главный экран -->
+    <string name="open_file">Открыть файл</string>
+    <string name="choose_file">Выбрать файл</string>
+    <string name="empty_title">Откройте первый файл</string>
+    <string name="empty_body">PDF, Word, Excel, PowerPoint, HTML, книги, архивы, картинки, аудио и видео. Всё открывается прямо в приложении.</string>
+    <string name="empty_offline">Работает без интернета. Файлы не покидают устройство.</string>
+    <string name="search_hint">Поиск по недавним файлам</string>
+    <string name="no_results">Ничего не найдено</string>
+    <string name="no_results_hint">Попробуйте другое название или другой тип файлов.</string>
+    <string name="filter_all">Все</string>
+    <string name="clear">Очистить</string>
+    <string name="section_today">Сегодня</string>
+    <string name="section_yesterday">Вчера</string>
+    <string name="section_week">На этой неделе</string>
+    <string name="section_earlier">Ранее</string>
+    <string name="menu_clear_list">Очистить список</string>
+    <string name="menu_about">О приложении</string>
+    <string name="clear_title">Очистить список?</string>
+    <string name="clear_body">Очистится только список. Сами файлы останутся на месте.</string>
+    <string name="removed">Убрано из списка</string>
+    <string name="undo">Вернуть</string>
+    <string name="file_unavailable">Файл не найден: возможно, его переместили или удалили.</string>
+    <string name="file_unavailable_short">Файл не найден</string>
+    <string name="remove">Убрать</string>
+    <string name="cancel">Отмена</string>
+    <string name="close">Закрыть</string>
+
+    <!-- О приложении -->
+    <string name="about_version">Версия %1$s</string>
+    <string name="about_body">Небольшой открытый просмотрщик: документы, таблицы, презентации, книги, архивы и медиа открываются прямо на устройстве, без облака и без аккаунта.</string>
+    <string name="about_license">Лицензия AGPL-3.0. Сторонние компоненты перечислены в THIRD_PARTY.txt.</string>
+
+    <!-- Действия с файлом -->
+    <string name="action_share">Поделиться</string>
+    <string name="action_open_external">Открыть в другом приложении</string>
+    <string name="action_remove_from_list">Убрать из списка</string>
+    <string name="action_details">Сведения о файле</string>
+    <string name="action_load_online">Загружать содержимое из интернета</string>
+    <string name="action_load_online_off">Не загружать из интернета</string>
+    <string name="chooser_open">Открыть в приложении</string>
+    <string name="toast_no_app">Не нашлось приложения, которое открывает этот файл</string>
+    <string name="toast_share_failed">Не удалось поделиться файлом</string>
+
+    <!-- Доступность -->
+    <string name="cd_back">Назад</string>
+    <string name="cd_more">Ещё</string>
+    <string name="cd_search">Поиск по документу</string>
+    <string name="cd_clear_search">Очистить поиск</string>
+    <string name="cd_logo">Логотип List</string>
+
+    <!-- Сведения о файле -->
+    <string name="detail_name">Имя</string>
+    <string name="detail_type">Тип</string>
+    <string name="detail_format">Формат</string>
+    <string name="detail_size">Размер</string>
+    <string name="detail_unknown">Неизвестно</string>
+
+    <!-- Поиск внутри документа -->
+    <string name="find_hint">Найти в документе</string>
+    <string name="find_prev">Предыдущее совпадение</string>
+    <string name="find_next">Следующее совпадение</string>
+    <string name="find_close">Закрыть поиск</string>
+
+    <!-- Ошибки -->
+    <string name="pdf_error_title">Не удалось открыть PDF</string>
+    <string name="pdf_error_body">Возможно, файл повреждён или защищён паролем. Можно попробовать другое приложение.</string>
+    <string name="image_error_title">Не удалось открыть изображение</string>
+    <string name="image_error_body">Возможно, файл повреждён или его формат не поддерживается на этом устройстве. Можно попробовать другое приложение.</string>
+    <string name="missing_body">Возможно, его переместили или удалили, либо доступ к нему закрыт. Откройте файл заново из его папки.</string>
+
+    <!-- Типы файлов (полные названия) -->
+    <string name="cat_pdf">PDF-документ</string>
+    <string name="cat_doc">Документ</string>
+    <string name="cat_sheet">Таблица</string>
+    <string name="cat_slide">Презентация</string>
+    <string name="cat_img">Изображение</string>
+    <string name="cat_media">Аудио или видео</string>
+    <string name="cat_web">Веб-страница</string>
+    <string name="cat_text">Текст или код</string>
+    <string name="cat_book">Книга</string>
+    <string name="cat_zip">Архив</string>
+    <string name="cat_other">Файл</string>
+
+    <!-- Типы файлов (коротко, для фильтров) -->
+    <string name="chip_pdf">PDF</string>
+    <string name="chip_doc">Документы</string>
+    <string name="chip_sheet">Таблицы</string>
+    <string name="chip_slide">Презентации</string>
+    <string name="chip_img">Картинки</string>
+    <string name="chip_media">Медиа</string>
+    <string name="chip_web">Веб</string>
+    <string name="chip_text">Текст</string>
+    <string name="chip_book">Книги</string>
+    <string name="chip_zip">Архивы</string>
+    <string name="chip_other">Другое</string>
+</resources>

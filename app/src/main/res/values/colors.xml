@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Window colours used before Compose draws its first frame. Keep in sync with Theme.kt and viewer.html. -->
+<resources>
+    <color name="list_background">#FFF4F8F8</color>
+    <color name="list_primary">#FF0B6E6E</color>
+</resources>

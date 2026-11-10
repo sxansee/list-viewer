@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The sheet-and-list mark of the launcher icon, without its background tile (72 x 72 grid). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="72dp"
+    android:height="72dp"
+    android:viewportWidth="72"
+    android:viewportHeight="72">
+    <group android:translateX="-18" android:translateY="-18">
+        <path android:fillColor="#FFFFFFFF" android:pathData="M40,28H61L74,41V74a6,6 0 0 1 -6,6H40a6,6 0 0 1 -6,-6V34a6,6 0 0 1 6,-6Z"/>
+        <path android:fillColor="#FFC6F3EC" android:pathData="M61,28L74,41H67a6,6 0 0 1 -6,-6Z"/>
+        <path android:fillColor="#FF0E8F86" android:pathData="M39.4,52a3,3 0 1,0 6,0a3,3 0 1,0 -6,0z"/>
+        <path android:pathData="M49.5,52H66.5" android:strokeColor="#FF0E8F86" android:strokeWidth="4.2" android:strokeLineCap="round"/>
+        <path android:fillColor="#FF7FD1C8" android:pathData="M39.4,62a3,3 0 1,0 6,0a3,3 0 1,0 -6,0z"/>
+        <path android:pathData="M49.5,62H63" android:strokeColor="#FF7FD1C8" android:strokeWidth="4.2" android:strokeLineCap="round"/>
+        <path android:fillColor="#FF7FD1C8" android:pathData="M39.4,72a3,3 0 1,0 6,0a3,3 0 1,0 -6,0z"/>
+        <path android:pathData="M49.5,72H58" android:strokeColor="#FF7FD1C8" android:strokeWidth="4.2" android:strokeLineCap="round"/>
+    </group>
+</vector>

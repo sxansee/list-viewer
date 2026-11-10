@@ -1,36 +1,96 @@
 <!doctype html>
+<html lang="en">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<title>List</title>
 <style>
-:root{--bg:#e6ecec;--fg:#1c2424;--card:#fff;--ac:#0b6e6e;--mu:#5d6767}
-body.d{--bg:#0e1515;--fg:#dde4e4;--card:#18201f;--ac:#5ccfcf;--mu:#9aa5a4}
-body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.55 system-ui,sans-serif}
+/* Colours follow the app theme (Theme.kt): same teal accent, same page background, so the screen never changes tone
+   when a document finishes loading. Dark mode is switched by the app with ?d=1, which sets the class "d" on <html>. */
+:root{--bg:#f4f8f8;--fg:#161d1d;--mu:#4a5554;--card:#fff;--ac:#0b6e6e;--bd:#bec9c8;--sel:#cce8e6;--on-sel:#051f1f;
+  --head:#e2e9e8;--zebra:#eef4f3;--note:#e0eeed;--err-bg:#ffdad6;--err-fg:#410002;--sh:0 1px 3px #0003,0 1px 2px #0002}
+:root.d{--bg:#0b1313;--fg:#dde4e3;--mu:#bec9c8;--card:#151f1f;--ac:#62d5cf;--bd:#3f4948;--sel:#324b4a;--on-sel:#cce8e6;
+  --head:#1f2929;--zebra:#111a1a;--note:#1a2828;--err-bg:#93000a;--err-fg:#ffdad6;--sh:0 1px 4px #000a}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.55 system-ui,-apple-system,Roboto,sans-serif}
 a{color:var(--ac)}
-#m{padding:32px 20px;text-align:center;color:var(--mu)}
-#m.err{color:#c62828;text-align:left}
-body.d #m.err{color:#ef9a9a}
-#n{margin:8px 12px;padding:8px 12px;border-radius:12px;background:var(--card);font-size:14px;color:var(--mu)}
-#bar{display:flex;gap:6px;padding:8px 12px;overflow-x:auto;position:sticky;top:0;z-index:5;background:var(--bg)}
+
+/* loading and error states */
+#m{display:flex;flex-direction:column;align-items:center;gap:16px;padding:80px 28px 32px;text-align:center;color:var(--mu)}
+#m[hidden]{display:none}
+#m p{margin:0;max-width:28em}
+#m h2{margin:4px 0 0;font-size:20px;font-weight:600;line-height:1.3;color:var(--fg)}
+#m .why{color:var(--fg);overflow-wrap:anywhere}
+.sp{width:30px;height:30px;border-radius:50%;border:3px solid var(--bd);border-top-color:var(--ac);animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.sp{animation-duration:2.4s}}
+.eic{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--err-bg);color:var(--err-fg)}
+.eic svg{width:30px;height:30px}
+
+/* one-line notice above the document */
+#n{display:flex;gap:10px;align-items:flex-start;margin:4px 16px 8px;padding:10px 14px;border-radius:14px;background:var(--note);font-size:14px;line-height:1.45}
+#n[hidden]{display:none}
+#n svg{flex:none;width:20px;height:20px;margin-top:1px;color:var(--ac)}
+
+/* tabs: pages / reading view, sheet names, "back to the archive" */
+#bar{display:flex;gap:8px;padding:10px 16px;overflow-x:auto;position:sticky;top:0;z-index:5;background:var(--bg);scrollbar-width:none}
+#bar::-webkit-scrollbar{display:none}
 #bar:empty{display:none}
-#bar button{border:0;border-radius:16px;padding:7px 14px;background:var(--card);color:var(--fg);font:inherit;font-size:14px;white-space:nowrap}
-#bar button.a{background:var(--ac);color:#fff}
-.r{max-width:42em;margin:0 auto;padding:12px 16px 48px;overflow-wrap:break-word}
+#bar button{flex:none;height:34px;padding:0 16px;border:1px solid var(--bd);border-radius:12px;background:transparent;color:var(--fg);font:inherit;font-size:14px;font-weight:500;white-space:nowrap;-webkit-tap-highlight-color:transparent}
+#bar button.a{background:var(--sel);color:var(--on-sel);border-color:transparent}
+
+/* reading text (books, Markdown, converted documents) */
+.r{max-width:42em;margin:0 auto;padding:12px 18px 56px;font-size:17px;line-height:1.65;overflow-wrap:break-word}
+.r h1,.r h2,.r h3,.r h4{line-height:1.3;margin:1.4em 0 .5em}
+.r h1{font-size:1.6em}.r h2{font-size:1.35em}.r h3{font-size:1.15em}.r h4{font-size:1em}
+.r p{margin:.7em 0}
 .r img,.r svg{max-width:100%;height:auto}
-.r table{white-space:normal}
-.t{margin:0;padding:12px 16px 48px;white-space:pre-wrap;word-break:break-word;font:13px/1.5 ui-monospace,Menlo,monospace}
-.docx-wrapper{background:transparent!important;padding:8px!important}
-.docx-wrapper>section.docx{box-shadow:0 1px 8px #0004;margin-bottom:10px!important}
-table{border-collapse:collapse;background:var(--card);color:var(--fg);font-size:13px;margin:8px 12px}
-tr:first-child td{font-weight:600}
-td,th{border:1px solid #8886;padding:3px 8px;white-space:nowrap;vertical-align:top}
-.sl{margin:14px 0;padding-bottom:6px;border-bottom:1px solid #8884}
-.sl h4{margin:0 0 6px;color:var(--mu)}
-.row{display:flex;justify-content:space-between;gap:12px;padding:13px 16px;border-bottom:1px solid #8883}
-.row b{font-weight:500;word-break:break-all}.row span{color:var(--mu);white-space:nowrap;font-size:13px}
-.i{display:block;max-width:100%;height:auto;margin:0 auto}
+.r blockquote{margin:1em 0;padding:.1em 1em;border-left:3px solid var(--ac);color:var(--mu)}
+.r hr{border:0;border-top:1px solid var(--bd);margin:2em 0}
+.r pre{margin:1em 0;padding:12px 14px;border-radius:12px;background:var(--card);overflow-x:auto;font:13px/1.5 ui-monospace,Menlo,Consolas,monospace}
+.r code{padding:.1em .35em;border-radius:6px;background:var(--head);font:.9em ui-monospace,Menlo,Consolas,monospace}
+.r pre code{padding:0;background:none;font-size:inherit}
+.r table{display:block;width:max-content;max-width:100%;overflow-x:auto;border-collapse:collapse;font-size:.92em;margin:1em 0}
+.r td,.r th{border:1px solid var(--bd);padding:6px 10px;vertical-align:top}
+.r th{background:var(--head);text-align:left}
+
+/* plain text, code, JSON */
+.t{margin:0;padding:12px 16px 56px;white-space:pre-wrap;word-break:break-word;font:13px/1.55 ui-monospace,Menlo,Consolas,monospace;tab-size:4}
+.more{margin:12px 16px;color:var(--mu);font-size:14px;text-align:center}
+.i{display:block;max-width:100%;height:auto;margin:16px auto}
 .ta{color:var(--mu);font-style:italic}.st{margin:.6em 0 .6em 1.2em}
 .k{color:#2a7ab0}.s{color:#2e7d32}.b{color:#b0562a}.z{color:#888}.nu{color:#8e24aa}
-body.d .k{color:#79b8e8}body.d .s{color:#8bc34a}body.d .b{color:#ffab70}body.d .nu{color:#ce93d8}
+:root.d .k{color:#79b8e8}:root.d .s{color:#8bc34a}:root.d .b{color:#ffab70}:root.d .nu{color:#ce93d8}
+
+/* Word pages (docx-preview) and slides (pptx-preview) are white paper in every app theme, so their text stays black
+   unless the file says otherwise. */
+.docx-wrapper{background:transparent!important;padding:8px!important;color:#000}
+.docx-wrapper>section.docx{box-shadow:var(--sh)!important;margin-bottom:12px!important}
+.pptx-preview-wrapper{background:transparent!important;padding:8px 0 40px;color:#000}
+.pptx-preview-slide-wrapper{box-shadow:var(--sh);margin-bottom:12px!important}
+/* The library does not apply table styles, so a table gets a light backing: readable on any slide, and cell fills from the file still win. */
+.pptx-preview-wrapper table{border-collapse:collapse;background:#fffe;color:#000}
+.pptx-preview-wrapper td{border:1px solid #8886;padding:3px 8px;vertical-align:top}
+.pptx-preview-wrapper tr:first-child td{font-weight:600}
+
+/* spreadsheets (SheetJS puts the table straight into #c) */
+#c>table{border-collapse:collapse;background:var(--card);color:var(--fg);font-size:13px;margin:8px 16px 40px}
+#c>table td,#c>table th{border:1px solid var(--bd);padding:5px 10px;white-space:nowrap;vertical-align:top}
+#c>table tr:first-child td{font-weight:600;background:var(--head)}
+#c>table tr:nth-child(even) td{background:var(--zebra)}
+
+/* text of slides without layout */
+.sl{margin:12px 0;padding:14px 16px;border-radius:16px;background:var(--card)}
+.sl h4{margin:0 0 8px;color:var(--ac);font-size:13px;letter-spacing:.04em;text-transform:uppercase}
+.sl p:last-child{margin-bottom:0}
+
+/* archive contents */
+.row{display:flex;align-items:center;gap:12px;margin:6px 16px;padding:10px 12px;border-radius:16px;background:var(--card);-webkit-tap-highlight-color:transparent}
+.row:active{filter:brightness(.95)}
+.row .x{flex:none;width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+.row .nm{flex:1;min-width:0}
+.row b{display:block;font-size:15px;font-weight:500;line-height:1.3;overflow-wrap:anywhere}
+.row span{color:var(--mu);font-size:13px}
 </style>
-<div id="m">Открываю файл…</div><div id="n" hidden></div><div id="bar"></div><div id="c"></div>
+<script>try{if(new URLSearchParams(location.search).get('d')==='1')document.documentElement.className='d'}catch(e){}</script>
+<div id="m"><div class="sp"></div></div><div id="n" hidden></div><div id="bar"></div><div id="c"></div>
 <script src="viewer.js"></script>

@@ -21,7 +21,7 @@ jobs:
         if: failure()
         shell: bash
         run: |
-          { echo '### Ошибки сборки'; echo '```'; grep -E "^e: |error:|What went wrong|Execution failed" -A4 build.log | head -120; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          { echo '### Build errors'; echo '```'; grep -E "^e: |error:|What went wrong|Execution failed" -A4 build.log | head -120; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload build log
         if: always()
         uses: actions/upload-artifact@v4
@@ -34,8 +34,10 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
-          name: Лист, последняя сборка
-          body: "Скачайте List.apk и установите на телефон. Сборка из коммита ${{ github.sha }}"
+          name: List, latest build
+          body: |
+            Download **List.apk** and install it on your phone (Android 7.0 or newer).
+            Built from commit ${{ github.sha }}.
           files: List.apk
           prerelease: false
           make_latest: true
