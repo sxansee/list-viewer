@@ -10,9 +10,11 @@ android {
         applicationId = "app.fileviewer"
         minSdk = 24
         targetSdk = 34
+        // The CI run number keeps versionCode growing, so every build installs over the previous one.
+        // A release takes its name from the git tag (the workflow passes it as APP_VERSION, e.g. 2.2.0); other builds are "dev".
         val run = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInt()
         versionCode = 100 + run
-        versionName = "2.1.$run"
+        versionName = System.getenv("APP_VERSION")?.takeIf { it.isNotBlank() } ?: "dev-$run"
     }
     signingConfigs {
         getByName("debug") {

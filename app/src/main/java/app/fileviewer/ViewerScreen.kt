@@ -33,10 +33,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import java.util.concurrent.atomic.AtomicBoolean
 
-/** A single open file: top bar with the name, the actions menu and the content for the file type. */
+/**
+ * A single open file: top bar with the name, the actions menu and the content for the file type.
+ * [store] holds the name and the folder the person gave the file inside List; the menu can change both.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Viewer(uri: Uri, back: () -> Unit) {
+fun Viewer(uri: Uri, back: () -> Unit, store: Recents) {
     val ctx = LocalContext.current
     val info = remember(uri) { infoOf(ctx, uri) }
     val holder = remember(uri) { WebHolder() }
@@ -44,8 +47,13 @@ fun Viewer(uri: Uri, back: () -> Unit) {
     var netOn by remember(uri) { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
     var details by remember { mutableStateOf(false) }
+    var renaming by remember { mutableStateOf(false) }
+    var moving by remember { mutableStateOf(false) }
     var finding by remember { mutableStateOf(false) }
     var found by remember { mutableStateOf("") }
+    val key = uri.toString()
+    var alias by remember(uri) { mutableStateOf(store.aliasOf(key)) }
+    val shown = displayName(info, alias)
     val webLike = info.route == Route.WEB || info.route == Route.HTML
     val mime = info.mime ?: mimeOf(info.ext)
 
@@ -75,7 +83,7 @@ fun Viewer(uri: Uri, back: () -> Unit) {
                 title = {
                     Column {
                         Text(
-                            info.name,
+                            shown,
                             style = MaterialTheme.typography.titleMedium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -140,6 +148,16 @@ fun Viewer(uri: Uri, back: () -> Unit) {
                                 )
                             }
                             DropdownMenuItem(
+                                text = { Text(stringResource(R.string.action_rename)) },
+                                leadingIcon = { Ico(R.drawable.ic_edit) },
+                                onClick = { menu = false; renaming = true }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.action_move)) },
+                                leadingIcon = { Ico(R.drawable.ic_folder) },
+                                onClick = { menu = false; moving = true }
+                            )
+                            DropdownMenuItem(
                                 text = { Text(stringResource(R.string.action_details)) },
                                 leadingIcon = { Ico(R.drawable.ic_info) },
                                 onClick = { menu = false; details = true }
@@ -182,11 +200,39 @@ fun Viewer(uri: Uri, back: () -> Unit) {
         }
     }
 
-    if (details) DetailsDialog(info) { details = false }
+    if (renaming) {
+        RenameDialog(
+            info = info,
+            alias = alias,
+            onSave = { a ->
+                store.setAlias(key, a)
+                alias = store.aliasOf(key)
+                renaming = false
+            },
+            onDismiss = { renaming = false }
+        )
+    }
+    if (moving) {
+        MoveDialog(
+            folders = store.folders(),
+            current = store.folderOf(key),
+            onPick = { id ->
+                store.moveTo(key, id)
+                moving = false
+            },
+            onCreate = { name ->
+                val f = store.createFolder(name)
+                if (f != null) store.moveTo(key, f.id)
+                moving = false
+            },
+            onDismiss = { moving = false }
+        )
+    }
+    if (details) DetailsDialog(info, shown) { details = false }
 }
 
 @Composable
-private fun DetailsDialog(info: Info, onClose: () -> Unit) {
+private fun DetailsDialog(info: Info, shown: String, onClose: () -> Unit) {
     val ctx = LocalContext.current
     val unknown = stringResource(R.string.detail_unknown)
     val format = listOfNotNull(info.ext.takeIf { it.isNotEmpty() }?.uppercase(), info.mime)
@@ -198,7 +244,9 @@ private fun DetailsDialog(info: Info, onClose: () -> Unit) {
         title = { Text(stringResource(R.string.action_details)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                DetailRow(stringResource(R.string.detail_name), info.name)
+                DetailRow(stringResource(R.string.detail_name), shown)
+                // A name chosen in List is shown above; the file itself keeps the name it has on the device.
+                if (shown != info.name) DetailRow(stringResource(R.string.detail_original), info.name)
                 DetailRow(stringResource(R.string.detail_type), stringResource(info.cat.titleRes))
                 DetailRow(stringResource(R.string.detail_format), format)
                 DetailRow(stringResource(R.string.detail_size), size)

@@ -45,6 +45,38 @@
     <string name="toast_no_app">Не нашлось приложения, которое открывает этот файл</string>
     <string name="toast_share_failed">Не удалось поделиться файлом</string>
 
+    <!-- Переименование и папки -->
+    <string name="action_rename">Переименовать</string>
+    <string name="action_move">Переместить в папку</string>
+    <string name="rename_title">Переименовать</string>
+    <string name="rename_hint">Меняется только название в List. Сам файл на устройстве сохраняет своё имя, а расширение остаётся прежним.</string>
+    <string name="rename_reset">Вернуть исходное название</string>
+    <string name="save">Сохранить</string>
+    <string name="create">Создать</string>
+    <string name="delete">Удалить</string>
+    <string name="move_title">Переместить в папку</string>
+    <string name="move_none">Основной список (без папки)</string>
+    <string name="folder_new">Новая папка</string>
+    <string name="folder_name">Название папки</string>
+    <string name="folder_exists">Папка с таким названием уже есть</string>
+    <string name="folder_rename">Переименовать папку</string>
+    <string name="folder_delete">Удалить папку</string>
+    <string name="folder_delete_title">Удалить папку «%1$s»?</string>
+    <string name="folder_delete_body">Файлы не удаляются: они вернутся в основной список.</string>
+    <string name="folder_empty_title">В папке пока пусто</string>
+    <string name="folder_empty_body">Откройте файл кнопкой ниже или выберите «Переместить в папку» в меню (три точки) рядом с любым файлом.</string>
+    <string name="sorted_title">Все файлы разложены по папкам</string>
+    <string name="sorted_body">Откройте папку выше, чтобы увидеть её файлы. Новые файлы будут появляться здесь.</string>
+    <string name="search_hint_folder">Поиск в этой папке</string>
+    <string name="clear_body_folders">Очистится только список. Файлы в папках останутся на месте, как и сами файлы на устройстве.</string>
+    <string name="detail_original">Имя файла на устройстве</string>
+    <plurals name="folder_files">
+        <item quantity="one">%d файл</item>
+        <item quantity="few">%d файла</item>
+        <item quantity="many">%d файлов</item>
+        <item quantity="other">%d файла</item>
+    </plurals>
+
     <!-- Доступность -->
     <string name="cd_back">Назад</string>
     <string name="cd_more">Ещё</string>

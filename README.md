@@ -23,6 +23,7 @@
 - **One app for most files.** PDF, Word, Excel, PowerPoint, OpenDocument, RTF, EPUB, FB2, HTML, Markdown, JSON, plain text and code, ZIP/RAR/7z/TAR archives, pictures, audio and video.
 - **Works offline and keeps files private.** Everything is rendered on the device and nothing is uploaded.
 - **Recent files that are easy to navigate.** Grouped by day, searchable by name, filterable by file type. Removing an entry can be undone, and files that were moved or deleted are marked instead of failing silently.
+- **Your own order.** Give a file a clearer name (its extension stays locked) and sort files into folders. Names and folders live inside List, so the files on your phone are never touched.
 - **Reading tools.** Search inside documents (not yet inside PDFs), pinch and double-tap zoom, a page counter for PDFs, a *Pages / Reading view* switch for Word files, a *Slides / Text* switch for presentations, sheet tabs for workbooks, and a browsable list of the files inside an archive.
 - **Plays well with other apps.** Choose *List* from "Open with" in a file manager or messenger. *Back* returns to the app the file came from. Any file can be shared or opened in another app from the ⋮ menu.
 - **Looks at home on your phone.** Light and dark themes follow the system, and the interface is available in English and Russian (it follows the system language).
@@ -75,7 +76,16 @@ Requirements: JDK 17 and the Android SDK with platform 34 (Android Studio sets b
 # → app/build/outputs/apk/debug/app-debug.apk
 ```
 
-**Automatic builds.** `.github/workflows/build.yml` builds a debug APK on every push and publishes it as `List.apk` in the `latest` release. The APK is signed with the debug key stored in the repository (`app/debug.keystore`), so every build installs over the previous one. It is a development key, not a secret one: if you publish the app anywhere else, sign it with your own key.
+**Automatic builds and releases.** `.github/workflows/build.yml` builds a debug APK on every push and keeps it for 30 days as a workflow artifact (Actions, open the run, section Artifacts). Every release is a separate entry under *Releases*: push a version tag, and the workflow builds the app and publishes it with `List.apk` attached and generated release notes.
+
+```bash
+git tag v2.2.0
+git push origin v2.2.0
+```
+
+A release can also be started by hand from the Actions tab (*Run workflow*, with the version filled in). A version with a suffix, such as `2.3.0-beta.1`, is published as a pre-release. The *Download the APK* link at the top always leads to the newest regular release.
+
+The APK is signed with the debug key stored in the repository (`app/debug.keystore`), so every build installs over the previous one. It is a development key, not a secret one: if you publish the app anywhere else, sign it with your own key.
 
 The package name `app.fileviewer` is kept on purpose, so new versions update existing installations.
 
@@ -85,11 +95,12 @@ The package name `app.fileviewer` is kept on purpose, so new versions update exi
 app/src/main/
 ├── java/app/fileviewer/
 │   ├── MainActivity.kt    entry point and navigation between the two screens
-│   ├── HomeScreen.kt      recent files: search, filters, undo
+│   ├── HomeScreen.kt      file list: search, filters, folders, undo
 │   ├── ViewerScreen.kt    top bar, actions and the content for each file type
 │   ├── Viewers.kt         PDF, pictures, audio/video and the WebView host
+│   ├── Organize.kt        dialogs for renaming files and managing folders
 │   ├── FileInfo.kt        file types, metadata, share and "open in another app"
-│   ├── Recents.kt         storage of the recent list
+│   ├── Recents.kt         storage of the list, chosen names and folders
 │   └── Theme.kt, Components.kt
 ├── assets/
 │   ├── viewer.html, viewer.js    the in-app document viewer

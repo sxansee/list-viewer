@@ -21,6 +21,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -85,18 +86,23 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-/** Two screens, the recent list and the viewer, with a short slide-and-fade between them. */
+/** Two screens, the list of files and the viewer, with a short slide-and-fade between them. */
 @Composable
 fun App(uri: Uri?, onOpen: (Uri) -> Unit, onClose: () -> Unit) {
     val ctx = LocalContext.current
-    val recents = remember { Recents(ctx) }
-    var items by remember { mutableStateOf(recents.list()) }
+    val store = remember { Recents(ctx) }
+    var items by remember { mutableStateOf(store.list()) }
+    var folders by remember { mutableStateOf(store.folders()) }
+    // The open folder is kept here, so that coming back from a document lands in the same folder.
+    var folder by rememberSaveable { mutableStateOf<String?>(null) }
+    val refresh: () -> Unit = {
+        items = store.list()
+        folders = store.folders()
+    }
 
     LaunchedEffect(uri) {
-        if (uri != null) {
-            recents.add(uri)
-            items = recents.list()
-        }
+        if (uri != null) store.add(uri)
+        refresh()
     }
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -112,22 +118,28 @@ fun App(uri: Uri?, onOpen: (Uri) -> Unit, onClose: () -> Unit) {
             label = "screen"
         ) { u ->
             if (u != null) {
-                Viewer(u, onClose)
+                // The viewer can rename a file or move it to a folder, so the list is reloaded on the way back.
+                Viewer(u, { refresh(); onClose() }, store)
             } else {
                 HomeScreen(
                     items = items,
+                    folders = folders,
+                    folder = folder,
+                    store = store,
+                    onFolder = { folder = it },
+                    onChanged = refresh,
                     onOpen = onOpen,
                     onRemove = { item ->
-                        recents.remove(item)
-                        items = recents.list()
+                        store.remove(item)
+                        refresh()
                     },
                     onRestore = { item ->
-                        recents.restore(item)
-                        items = recents.list()
+                        store.restore(item)
+                        refresh()
                     },
                     onClear = {
-                        recents.clear()
-                        items = recents.list()
+                        store.clear()
+                        refresh()
                     }
                 )
             }

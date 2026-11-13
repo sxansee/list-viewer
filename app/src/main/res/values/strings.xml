@@ -47,6 +47,36 @@
     <string name="toast_no_app">No app found that can open this file</string>
     <string name="toast_share_failed">Couldn\'t share the file</string>
 
+    <!-- Rename and folders -->
+    <string name="action_rename">Rename</string>
+    <string name="action_move">Move to folder</string>
+    <string name="rename_title">Rename</string>
+    <string name="rename_hint">Only the name shown in List changes. The file on your device keeps its name, and the extension stays as it is.</string>
+    <string name="rename_reset">Use the original name</string>
+    <string name="save">Save</string>
+    <string name="create">Create</string>
+    <string name="delete">Delete</string>
+    <string name="move_title">Move to folder</string>
+    <string name="move_none">Main list (no folder)</string>
+    <string name="folder_new">New folder</string>
+    <string name="folder_name">Folder name</string>
+    <string name="folder_exists">A folder with this name already exists</string>
+    <string name="folder_rename">Rename folder</string>
+    <string name="folder_delete">Delete folder</string>
+    <string name="folder_delete_title">Delete “%1$s”?</string>
+    <string name="folder_delete_body">Your files are not deleted. They return to the main list.</string>
+    <string name="folder_empty_title">This folder is empty</string>
+    <string name="folder_empty_body">Open a file with the button below, or use the menu (three dots) next to any file and choose “Move to folder”.</string>
+    <string name="sorted_title">Everything is in folders</string>
+    <string name="sorted_body">Open a folder above to see its files. Files you open next will appear here.</string>
+    <string name="search_hint_folder">Search in this folder</string>
+    <string name="clear_body_folders">Only the list is cleared. Files you put into folders stay there, and the files themselves stay where they are.</string>
+    <string name="detail_original">File name on the device</string>
+    <plurals name="folder_files">
+        <item quantity="one">%d file</item>
+        <item quantity="other">%d files</item>
+    </plurals>
+
     <!-- Accessibility -->
     <string name="cd_back">Back</string>
     <string name="cd_more">More options</string>
