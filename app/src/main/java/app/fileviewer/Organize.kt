@@ -1,6 +1,8 @@
 package app.fileviewer
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -10,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -30,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
@@ -40,24 +44,9 @@ import kotlinx.coroutines.delay
 
 // Renaming and folders live only inside List (see Recents.kt): the files on the device are never touched.
 
-/** The extension of [name] with its dot (".pdf"), or "" when there is none. A leading dot (".bashrc") is not one. */
-fun extensionOf(name: String): String {
-    val dot = name.lastIndexOf('.')
-    return if (dot > 0 && dot < name.length - 1) name.substring(dot) else ""
-}
-
 /** The name shown for a file: the name chosen in List plus the file's real extension, or the file's own name. */
 fun displayName(info: Info, alias: String?): String =
     if (alias.isNullOrBlank()) info.name else alias + extensionOf(info.name)
-
-/** What was typed, as a name: one line, trimmed, and without the extension if the person typed that too. */
-private fun typedName(text: String, ext: String): String {
-    var t = text.replace(Regex("[\\t\\r\\n]+"), " ").trim()
-    if (ext.isNotEmpty() && t.length > ext.length && t.endsWith(ext, ignoreCase = true)) {
-        t = t.dropLast(ext.length).trimEnd()
-    }
-    return t
-}
 
 private fun selectAll(s: String) = TextFieldValue(s, TextRange(0, s.length))
 
@@ -131,19 +120,21 @@ fun RenameDialog(info: Info, alias: String?, onSave: (String?) -> Unit, onDismis
 }
 
 /**
- * Asks for the name of a folder (a new one or a rename). [taken] holds the names of the other folders:
- * a name that is already used is refused. [title] and [confirm] are string resources.
+ * Asks for the name and the color of a folder (a new one, or an existing one being changed). [taken] holds the names
+ * of the other folders: a name that is already used is refused. [title] and [confirm] are string resources.
  */
 @Composable
-fun FolderNameDialog(
+fun FolderDialog(
     title: Int,
     initial: String,
+    initialColor: Int,
     confirm: Int,
     taken: List<String>,
-    onSave: (String) -> Unit,
+    onSave: (String, Int) -> Unit,
     onDismiss: () -> Unit
 ) {
     var text by remember { mutableStateOf(selectAll(initial)) }
+    var color by remember { mutableStateOf(initialColor) }
     val focus = remember { FocusRequester() }
     val name = text.text.replace(Regex("[\\t\\r\\n]+"), " ").trim()
     val duplicate = taken.any { it.equals(name, ignoreCase = true) }
@@ -163,34 +154,67 @@ fun FolderNameDialog(
                     isError = duplicate,
                     supportingText = if (duplicate) { { Text(stringResource(R.string.folder_exists)) } } else null,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { if (ok) onSave(name) })
+                    keyboardActions = KeyboardActions(onDone = { if (ok) onSave(name, color) })
                 )
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    stringResource(R.string.folder_color),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(8.dp))
+                ColorPicker(color) { color = it }
             }
         },
         confirmButton = {
-            TextButton(onClick = { onSave(name) }, enabled = ok) { Text(stringResource(confirm)) }
+            TextButton(onClick = { onSave(name, color) }, enabled = ok) { Text(stringResource(confirm)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } }
     )
 }
 
+/** A row of colored dots, one for each color a folder can have; the chosen one carries a tick. */
+@Composable
+private fun ColorPicker(selected: Int, onPick: (Int) -> Unit) {
+    Row(Modifier.fillMaxWidth()) {
+        for (i in 0 until Recents.COLORS) {
+            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                Box(
+                    Modifier
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .background(folderColor(i))
+                        .clickable { onPick(i) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (i == selected) {
+                        Ico(R.drawable.ic_check, null, Modifier.size(16.dp), Color.White)
+                    }
+                }
+            }
+        }
+    }
+}
+
 /**
- * Lets the person choose a folder for a file: the main list (no folder), one of [folders], or a new one.
- * [current] is the folder the file is in now (null = none). [onPick] gets a folder id, or null for the main list.
+ * Lets the person choose a folder for files: the main list (no folder), one of [folders], or a new one.
+ * [current] is the folder the files are in now (null = none; any text that is not a folder id marks a mixed choice).
+ * [onPick] gets a folder id, or null for the main list.
  */
 @Composable
 fun MoveDialog(
     folders: List<Folder>,
     current: String?,
     onPick: (String?) -> Unit,
-    onCreate: (String) -> Unit,
+    onCreate: (String, Int) -> Unit,
     onDismiss: () -> Unit
 ) {
     var creating by remember { mutableStateOf(false) }
     if (creating) {
-        FolderNameDialog(
+        FolderDialog(
             title = R.string.folder_new,
             initial = "",
+            initialColor = 0,
             confirm = R.string.create,
             taken = folders.map { it.name },
             onSave = onCreate,
@@ -202,11 +226,11 @@ fun MoveDialog(
             title = { Text(stringResource(R.string.move_title)) },
             text = {
                 Column(Modifier.verticalScroll(rememberScrollState())) {
-                    PickRow(null, stringResource(R.string.move_none), current == null, false) { onPick(null) }
+                    PickRow(null, stringResource(R.string.move_none), current == null, false, null) { onPick(null) }
                     for (f in folders) {
-                        PickRow(R.drawable.ic_folder, f.name, f.id == current, false) { onPick(f.id) }
+                        PickRow(R.drawable.ic_folder, f.name, f.id == current, false, folderColor(f.color)) { onPick(f.id) }
                     }
-                    PickRow(R.drawable.ic_folder_plus, stringResource(R.string.folder_new), false, true) { creating = true }
+                    PickRow(R.drawable.ic_folder_plus, stringResource(R.string.folder_new), false, true, null) { creating = true }
                 }
             },
             confirmButton = {
@@ -217,7 +241,14 @@ fun MoveDialog(
 }
 
 @Composable
-private fun PickRow(icon: Int?, label: String, selected: Boolean, accent: Boolean, onClick: () -> Unit) {
+private fun PickRow(
+    icon: Int?,
+    label: String,
+    selected: Boolean,
+    accent: Boolean,
+    iconTint: Color?,
+    onClick: () -> Unit
+) {
     val tint = if (accent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
     Row(
         Modifier
@@ -228,7 +259,7 @@ private fun PickRow(icon: Int?, label: String, selected: Boolean, accent: Boolea
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (icon != null) {
-            Ico(icon, null, Modifier.size(24.dp), tint)
+            Ico(icon, null, Modifier.size(24.dp), iconTint ?: tint)
         } else {
             Spacer(Modifier.size(24.dp))
         }

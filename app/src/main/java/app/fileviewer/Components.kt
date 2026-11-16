@@ -73,6 +73,44 @@ fun FileTile(info: Info, size: Dp = 46.dp) {
     ExtTile(info.ext.ifEmpty { "?" }.uppercase().take(4), info.cat.color, size)
 }
 
+/** The colors a folder can have, by index; null (index 0) is the app's own color. [Recents.COLORS] is the size of this list. */
+val FOLDER_COLORS: List<Color?> = listOf(
+    null,
+    Color(0xFFC62828),
+    Color(0xFFE65100),
+    Color(0xFFF9A825),
+    Color(0xFF2E7D32),
+    Color(0xFF1565C0),
+    Color(0xFF6A1B9A),
+    Color(0xFFAD1457)
+)
+
+/** The color shown for a folder with this [color] index: its own, or the app's main color. */
+@Composable
+fun folderColor(color: Int): Color = FOLDER_COLORS.getOrNull(color) ?: MaterialTheme.colorScheme.primary
+
+/** Background and icon color of the tile of a folder with this [color] index. */
+@Composable
+fun folderTile(color: Int): Pair<Color, Color> {
+    val c = FOLDER_COLORS.getOrNull(color)
+    if (c == null) {
+        return Pair(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer)
+    }
+    val dark = isSystemInDarkTheme()
+    return Pair(c.copy(alpha = if (dark) 0.22f else 0.13f), if (dark) lerp(c, Color.White, 0.45f) else c)
+}
+
+/** The mark on a selected row: a filled circle with a tick, the size of a file tile. */
+@Composable
+fun CheckBadge(size: Dp = 46.dp) {
+    Box(
+        Modifier.size(size).clip(CircleShape).background(MaterialTheme.colorScheme.primary),
+        contentAlignment = Alignment.Center
+    ) {
+        Ico(R.drawable.ic_check, null, Modifier.size(size * 0.5f), MaterialTheme.colorScheme.onPrimary)
+    }
+}
+
 /** Centered "something went wrong" panel with optional action buttons below the text. */
 @Composable
 fun MessageState(

@@ -3,6 +3,7 @@ package app.fileviewer
 import android.net.Uri
 import android.text.format.Formatter
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,11 +36,12 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * A single open file: top bar with the name, the actions menu and the content for the file type.
- * [store] holds the name and the folder the person gave the file inside List; the menu can change both.
+ * [store] holds the name and the folder the person gave the file inside List, and the place where reading stopped;
+ * the menu can change the first two, the content reports the third. [settings] has the reading options.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Viewer(uri: Uri, back: () -> Unit, store: Recents) {
+fun Viewer(uri: Uri, back: () -> Unit, store: Recents, settings: Settings) {
     val ctx = LocalContext.current
     val info = remember(uri) { infoOf(ctx, uri) }
     val holder = remember(uri) { WebHolder() }
@@ -51,11 +53,17 @@ fun Viewer(uri: Uri, back: () -> Unit, store: Recents) {
     var moving by remember { mutableStateOf(false) }
     var finding by remember { mutableStateOf(false) }
     var found by remember { mutableStateOf("") }
+    var options by remember { mutableStateOf(false) }
     val key = uri.toString()
     var alias by remember(uri) { mutableStateOf(store.aliasOf(key)) }
+    // Where reading stopped last time (a page, a moment or a place in the text); it is read once, when the file opens.
+    val start = remember(uri) { store.posOf(key) }
+    val savePos: (Long) -> Unit = { store.setPos(key, it) }
+    val saveCopy = rememberCopySaver()
     val shown = displayName(info, alias)
     val webLike = info.route == Route.WEB || info.route == Route.HTML
     val mime = info.mime ?: mimeOf(info.ext)
+    val hasOptions = info.available && (webLike || info.route == Route.PDF)
 
     val typeText = stringResource(info.cat.titleRes)
     val subtitle = remember(info, typeText) {
@@ -128,6 +136,18 @@ fun Viewer(uri: Uri, back: () -> Unit, store: Recents) {
                                     leadingIcon = { Ico(R.drawable.ic_external) },
                                     onClick = { menu = false; openExternal(ctx, uri, mime) }
                                 )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.action_save_copy)) },
+                                    leadingIcon = { Ico(R.drawable.ic_download) },
+                                    onClick = { menu = false; saveCopy(uri, shown) }
+                                )
+                            }
+                            if (hasOptions) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.options_title)) },
+                                    leadingIcon = { Ico(R.drawable.ic_text_size) },
+                                    onClick = { menu = false; options = true }
+                                )
                             }
                             if (info.route == Route.HTML) {
                                 DropdownMenuItem(
@@ -190,10 +210,10 @@ fun Viewer(uri: Uri, back: () -> Unit, store: Recents) {
                     }
                 } else {
                     when (info.route) {
-                        Route.PDF -> PdfView(uri)
+                        Route.PDF -> PdfView(uri, start.toInt(), settings.darkPdf && isSystemInDarkTheme()) { savePos(it.toLong()) }
                         Route.IMAGE -> ZoomImage(uri, mime)
-                        Route.MEDIA -> MediaView(uri, info.isVideo())
-                        Route.HTML, Route.WEB -> WebDoc(uri, info, net, holder) { found = it }
+                        Route.MEDIA -> MediaView(uri, info.isVideo(), start, savePos)
+                        Route.HTML, Route.WEB -> WebDoc(uri, info, net, holder, start, settings.textScale, savePos) { found = it }
                     }
                 }
             }
@@ -220,8 +240,8 @@ fun Viewer(uri: Uri, back: () -> Unit, store: Recents) {
                 store.moveTo(key, id)
                 moving = false
             },
-            onCreate = { name ->
-                val f = store.createFolder(name)
+            onCreate = { name, color ->
+                val f = store.createFolder(name, color)
                 if (f != null) store.moveTo(key, f.id)
                 moving = false
             },
@@ -229,6 +249,14 @@ fun Viewer(uri: Uri, back: () -> Unit, store: Recents) {
         )
     }
     if (details) DetailsDialog(info, shown) { details = false }
+    if (options) {
+        ReadingOptionsDialog(
+            settings = settings,
+            showText = webLike,
+            showPdf = info.route == Route.PDF,
+            onDismiss = { options = false }
+        )
+    }
 }
 
 @Composable

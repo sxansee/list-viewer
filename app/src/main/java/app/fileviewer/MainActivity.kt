@@ -3,6 +3,7 @@ package app.fileviewer
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -29,7 +30,7 @@ import androidx.compose.ui.platform.LocalContext
 class MainActivity : ComponentActivity() {
     private var opened by mutableStateOf<Uri?>(null)
 
-    /** True while the open document was handed over by another app ("Open with"): Back then returns to that app. */
+    /** True while the open document was handed over by another app ("Open with", "Share"): Back then returns to that app. */
     private var external = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -38,10 +39,8 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState != null) {
             opened = savedInstanceState.getString(KEY_URI)?.let { Uri.parse(it) }
             external = savedInstanceState.getBoolean(KEY_EXTERNAL)
-        } else if (intent?.action == Intent.ACTION_VIEW && intent.data != null) {
-            keepAccess(intent)
-            opened = intent.data
-            external = true
+        } else {
+            takeIntent(intent)
         }
         setContent {
             AppTheme {
@@ -69,15 +68,68 @@ class MainActivity : ComponentActivity() {
         outState.putBoolean(KEY_EXTERNAL, external)
     }
 
-    /** Keeps read access to a document that another app opened with us, so it can be reopened from the recent list later. */
-    private fun keepAccess(i: Intent) {
-        val u = i.data ?: return
-        if ((i.flags and Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION) == 0) return
-        try {
-            contentResolver.takePersistableUriPermission(u, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        } catch (e: Exception) {
-            // Not every provider offers a lasting grant; the document still opens now.
+    /**
+     * Reacts to the way the app was started. A document that another app opened with us ("Open with") or shared with
+     * us opens at once. Several shared documents are put into the list, and the list is shown.
+     */
+    private fun takeIntent(i: Intent?) {
+        if (i == null) return
+        when (i.action) {
+            Intent.ACTION_VIEW -> {
+                val u = i.data ?: return
+                keepAccess(i, u)
+                opened = u
+                external = true
+            }
+            Intent.ACTION_SEND, Intent.ACTION_SEND_MULTIPLE -> {
+                val shared = sharedUris(i)
+                for (u in shared) keepAccess(i, u)
+                when {
+                    shared.isEmpty() -> toast(this, R.string.share_nothing)
+                    shared.size == 1 -> {
+                        opened = shared[0]
+                        external = true
+                    }
+                    else -> {
+                        val store = Recents(this)
+                        // The first of the shared files ends up on top.
+                        for (u in shared.asReversed()) store.add(u)
+                        Toast.makeText(this, getString(R.string.shared_added, shared.size), Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
         }
+    }
+
+    /** The documents that were shared: the stream extras, or, when an app put them only there, the clip data. */
+    @Suppress("DEPRECATION")
+    private fun sharedUris(i: Intent): List<Uri> {
+        val out = ArrayList<Uri>()
+        try {
+            if (i.action == Intent.ACTION_SEND_MULTIPLE) {
+                val l = i.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)
+                if (l != null) out.addAll(l)
+            } else {
+                val u = i.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
+                if (u != null) out.add(u)
+            }
+        } catch (e: Exception) {
+            // An extra of an unexpected kind: the clip data below may still have the documents.
+        }
+        val clip = i.clipData
+        if (out.isEmpty() && clip != null) {
+            for (n in 0 until clip.itemCount) {
+                val u = clip.getItemAt(n).uri
+                if (u != null) out.add(u)
+            }
+        }
+        return out.filter { it.scheme == "content" || it.scheme == "file" }.distinct()
+    }
+
+    /** Keeps read access to a document that another app handed over, so it can be reopened from the recent list later. */
+    private fun keepAccess(i: Intent, u: Uri) {
+        if ((i.flags and Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION) == 0) return
+        keepRead(this, u)
     }
 
     private companion object {
@@ -91,6 +143,7 @@ class MainActivity : ComponentActivity() {
 fun App(uri: Uri?, onOpen: (Uri) -> Unit, onClose: () -> Unit) {
     val ctx = LocalContext.current
     val store = remember { Recents(ctx) }
+    val settings = remember { Settings(ctx) }
     var items by remember { mutableStateOf(store.list()) }
     var folders by remember { mutableStateOf(store.folders()) }
     // The open folder is kept here, so that coming back from a document lands in the same folder.
@@ -118,29 +171,18 @@ fun App(uri: Uri?, onOpen: (Uri) -> Unit, onClose: () -> Unit) {
             label = "screen"
         ) { u ->
             if (u != null) {
-                // The viewer can rename a file or move it to a folder, so the list is reloaded on the way back.
-                Viewer(u, { refresh(); onClose() }, store)
+                // The viewer can rename a file, move it to a folder or note where reading stopped, so the list is reloaded on the way back.
+                Viewer(u, { refresh(); onClose() }, store, settings)
             } else {
                 HomeScreen(
                     items = items,
                     folders = folders,
                     folder = folder,
                     store = store,
+                    settings = settings,
                     onFolder = { folder = it },
                     onChanged = refresh,
-                    onOpen = onOpen,
-                    onRemove = { item ->
-                        store.remove(item)
-                        refresh()
-                    },
-                    onRestore = { item ->
-                        store.restore(item)
-                        refresh()
-                    },
-                    onClear = {
-                        store.clear()
-                        refresh()
-                    }
+                    onOpen = onOpen
                 )
             }
         }

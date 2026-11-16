@@ -378,6 +378,24 @@ async function start(){
     const h=a.getAttribute('href')||'';if(h[0]==='#'||/^(https?|mailto|tel):/i.test(h))return;e.preventDefault()});
   try{const r=await fetch('/doc/file');if(!r.ok)throw new Error(i18n('unavailable'));
     await open(Q.get('ext')||'',await r.arrayBuffer())}catch(e){fail(e)}
+  if(!failed)restore();
 }
+/* ---------- Where reading stopped ----------
+   The app passes ?p= (thousandths of the page height) and reads window.__posOk: only when it is true does the app start to
+   save the place, so that closing the document before it has been put at the saved place never overwrites that place. */
+window.__posOk=false;
+const P=Math.min(1000,Math.max(0,Math.round(+Q.get('p'))||0));
+let touched=false;
+['touchstart','wheel','keydown','mousedown'].forEach(t=>addEventListener(t,()=>{touched=true},{passive:true,capture:true}));
+function restore(){
+  if(!P){window.__posOk=true;return}
+  let n=0;
+  /* Pictures and fonts keep changing the height for a moment, so the place is set again a few times, unless the person scrolled. */
+  const step=()=>{
+    if(touched){window.__posOk=true;return}
+    const e=document.scrollingElement||document.documentElement,room=e.scrollHeight-innerHeight;
+    if(room>0)scrollTo(0,Math.round(room*P/1000));
+    if(++n<8)setTimeout(step,250);else window.__posOk=true};
+  step()}
 window.__open=open;
 if(!window.__noauto)window.__ready=start();

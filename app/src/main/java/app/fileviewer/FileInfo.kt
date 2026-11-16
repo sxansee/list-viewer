@@ -77,8 +77,12 @@ fun Info.isVideo(): Boolean = ext in VIDEO_EXT
 
 fun mimeOf(ext: String): String = MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: "*/*"
 
-/** Reads name, size and availability with a single metadata query (no file content is opened). */
-fun infoOf(c: Context, u: Uri): Info {
+/**
+ * Reads name, size and availability with a single metadata query (no file content is opened).
+ * [lastName] and [lastSize] are what List knew about the file before: they stand in when the file can no longer be
+ * read, so that a file that went missing is still shown by its name.
+ */
+fun infoOf(c: Context, u: Uri, lastName: String? = null, lastSize: Long = -1L): Info {
     var name: String? = null
     var size = -1L
     var available = true
@@ -107,7 +111,8 @@ fun infoOf(c: Context, u: Uri): Info {
             available = canOpen(c, u)
         }
     }
-    val shownName = name ?: u.lastPathSegment ?: "file"
+    if (!available) size = lastSize
+    val shownName = name ?: lastName ?: u.lastPathSegment ?: "file"
     val mime = try { c.contentResolver.getType(u) } catch (e: Exception) { null }
     var ext = shownName.substringAfterLast('.', "").lowercase()
     if (!TABLE.containsKey(ext)) {
@@ -130,4 +135,38 @@ fun openExternal(c: Context, u: Uri, mime: String) {
 fun shareFile(c: Context, u: Uri, mime: String) {
     val i = Intent(Intent.ACTION_SEND).setType(mime).putExtra(Intent.EXTRA_STREAM, u).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     try { c.startActivity(Intent.createChooser(i, null)) } catch (e: Exception) { toast(c, R.string.toast_share_failed) }
+}
+
+private fun typeOf(c: Context, u: Uri): String = try { c.contentResolver.getType(u) } catch (e: Exception) { null } ?: "*/*"
+
+/** Shares several files at once. One file is shared the usual way; several get the type they have in common, or any. */
+fun shareFiles(c: Context, uris: List<Uri>) {
+    if (uris.isEmpty()) return
+    if (uris.size == 1) {
+        shareFile(c, uris[0], typeOf(c, uris[0]))
+        return
+    }
+    val types = uris.map { typeOf(c, it) }.distinct()
+    val mime = when {
+        types.size == 1 -> types[0]
+        types.map { it.substringBefore('/') }.distinct().size == 1 -> types[0].substringBefore('/') + "/*"
+        else -> "*/*"
+    }
+    val i = Intent(Intent.ACTION_SEND_MULTIPLE).setType(mime)
+        .putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList(uris))
+        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    try { c.startActivity(Intent.createChooser(i, null)) } catch (e: Exception) { toast(c, R.string.toast_share_failed) }
+}
+
+/**
+ * Asks for a lasting read grant on a document that was picked or handed over, so that it can be reopened from the list
+ * later. Not every provider offers one (a file shared by another app often has only a temporary grant); the document
+ * still opens now.
+ */
+fun keepRead(c: Context, u: Uri) {
+    try {
+        c.contentResolver.takePersistableUriPermission(u, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    } catch (e: Exception) {
+        // No lasting grant is offered for this document.
+    }
 }

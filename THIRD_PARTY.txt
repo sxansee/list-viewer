@@ -15,7 +15,10 @@ Libraries in app/src/main/assets/lib (used by the in-app document viewer)
                         and LICENSES/7zip-unRarLicense.txt)
 
 Android libraries
-  Jetpack Compose, Activity, Media3 (ExoPlayer), Coil, androidx.webkit ... Apache-2.0
+  Jetpack Compose, Activity, Media3 (ExoPlayer), Coil, androidx.webkit, Kotlin coroutines ... Apache-2.0
+
+Test tools (used only to run the unit tests in app/src/test; not part of the APK)
+  JUnit 4 ............. EPL-1.0
 
 Converter for legacy formats (doc, ppt, odt, odp, rtf)
   x2t from ONLYOFFICE Document Server ... AGPL-3.0

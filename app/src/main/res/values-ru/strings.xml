@@ -23,7 +23,7 @@
     <string name="clear_body">Очистится только список. Сами файлы останутся на месте.</string>
     <string name="removed">Убрано из списка</string>
     <string name="undo">Вернуть</string>
-    <string name="file_unavailable">Файл не найден: возможно, его переместили или удалили.</string>
+    <string name="file_unavailable">Файл не найден: возможно, его переместили или удалили, или доступ к нему потерян.</string>
     <string name="file_unavailable_short">Файл не найден</string>
     <string name="remove">Убрать</string>
     <string name="cancel">Отмена</string>
@@ -49,7 +49,7 @@
     <string name="action_rename">Переименовать</string>
     <string name="action_move">Переместить в папку</string>
     <string name="rename_title">Переименовать</string>
-    <string name="rename_hint">Меняется только название в List. Сам файл на устройстве сохраняет своё имя, а расширение остаётся прежним.</string>
+    <string name="rename_hint">Меняется только название в List. Сам файл на устройстве сохраняет своё имя, а расширение остаётся прежним. Чтобы получить файл с новым именем, выберите «Сохранить копию…».</string>
     <string name="rename_reset">Вернуть исходное название</string>
     <string name="save">Сохранить</string>
     <string name="create">Создать</string>
@@ -59,7 +59,7 @@
     <string name="folder_new">Новая папка</string>
     <string name="folder_name">Название папки</string>
     <string name="folder_exists">Папка с таким названием уже есть</string>
-    <string name="folder_rename">Переименовать папку</string>
+    <string name="folder_rename">Изменить папку</string>
     <string name="folder_delete">Удалить папку</string>
     <string name="folder_delete_title">Удалить папку «%1$s»?</string>
     <string name="folder_delete_body">Файлы не удаляются: они вернутся в основной список.</string>
@@ -68,7 +68,7 @@
     <string name="sorted_title">Все файлы разложены по папкам</string>
     <string name="sorted_body">Откройте папку выше, чтобы увидеть её файлы. Новые файлы будут появляться здесь.</string>
     <string name="search_hint_folder">Поиск в этой папке</string>
-    <string name="clear_body_folders">Очистится только список. Файлы в папках останутся на месте, как и сами файлы на устройстве.</string>
+    <string name="clear_body_folders">Очистится только список. Файлы в папках и закреплённые останутся, как и сами файлы на устройстве.</string>
     <string name="detail_original">Имя файла на устройстве</string>
     <plurals name="folder_files">
         <item quantity="one">%d файл</item>
@@ -76,6 +76,56 @@
         <item quantity="many">%d файлов</item>
         <item quantity="other">%d файла</item>
     </plurals>
+
+    <!-- Сортировка и закрепление -->
+    <string name="cd_sort">Сортировка</string>
+    <string name="sort_title">Сортировать по</string>
+    <string name="sort_recent">Дате открытия</string>
+    <string name="sort_name">Названию</string>
+    <string name="sort_size">Размеру</string>
+    <string name="sort_type">Типу</string>
+    <string name="section_pinned">Закреплённые</string>
+    <string name="section_others">Остальные</string>
+    <string name="action_pin">Закрепить вверху</string>
+    <string name="action_unpin">Открепить</string>
+    <string name="cd_pinned">Закреплён</string>
+
+    <!-- Выбор нескольких файлов -->
+    <string name="action_select">Выбрать</string>
+    <string name="action_select_all">Выбрать все</string>
+    <string name="cd_cancel_selection">Отменить выбор</string>
+    <string name="selected_count">Выбрано: %1$d</string>
+    <string name="removed_many">Убрано из списка: %1$d</string>
+
+    <!-- Недоступные файлы -->
+    <string name="action_locate">Указать файл заново…</string>
+    <string name="locate_short">Указать</string>
+
+    <!-- Резервная копия списка -->
+    <string name="menu_backup">Сохранить копию списка</string>
+    <string name="menu_restore">Восстановить из копии</string>
+    <string name="backup_saved">Копия списка сохранена</string>
+    <string name="backup_failed">Не удалось сохранить копию</string>
+    <string name="restore_failed">Не удалось прочитать копию. Выберите файл, который сохранил List.</string>
+    <string name="restore_title">Копия восстановлена</string>
+    <string name="restore_body">Добавлено: %1$d, обновлено: %2$d.\n\nФайлы, к которым List пока не имеет доступа, отмечены красным. Нажмите на такой файл и выберите «Указать»: название, папка и место чтения сохранятся.</string>
+    <string name="restore_nothing">Всё из этой копии уже есть в вашем списке.</string>
+
+    <!-- Настройки чтения -->
+    <string name="options_title">Настройки чтения</string>
+    <string name="options_text_size">Размер текста</string>
+    <string name="options_text_hint">Для текстовых документов, книг и веб-страниц.</string>
+    <string name="options_dark_pdf">Тёмные страницы PDF</string>
+    <string name="options_dark_pdf_hint">Инвертирует цвета страниц, пока включена тёмная тема.</string>
+    <string name="options_reset">Сбросить</string>
+
+    <!-- Копия файла и приём файлов из других приложений -->
+    <string name="action_save_copy">Сохранить копию…</string>
+    <string name="copy_saved">Копия сохранена</string>
+    <string name="copy_failed">Не удалось сохранить копию</string>
+    <string name="share_nothing">В полученных данных нет файла для открытия.</string>
+    <string name="shared_added">Файлов добавлено в список: %1$d</string>
+    <string name="folder_color">Цвет</string>
 
     <!-- Доступность -->
     <string name="cd_back">Назад</string>

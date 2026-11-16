@@ -1,0 +1,85 @@
+name: Bug report / Сообщение об ошибке
+description: A file does not open, looks wrong, or the app misbehaves / Файл не открывается, выглядит неправильно или приложение работает не так
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. The more exact the description, the faster it can be fixed. Русский язык тоже подходит.
+
+        **Please do not attach files that contain private information.** If the problem depends on a file, remove everything private from a copy first, or describe the file instead (type, size, where it came from, what it contains).
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened? / Что произошло?
+      description: What did you do, and what did you see?
+      placeholder: "I opened a .pptx and the first slide shows only the title"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect? / Что вы ожидали?
+      placeholder: "The whole slide, as in PowerPoint"
+    validations:
+      required: false
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce / Как повторить
+      placeholder: |
+        1. Open List
+        2. Choose the file
+        3. ...
+    validations:
+      required: false
+  - type: dropdown
+    id: filetype
+    attributes:
+      label: File type / Тип файла
+      description: Pick the closest one, or "Not about a file" for problems with the list, folders, backup and so on.
+      options:
+        - Not about a file / Не связано с файлом
+        - PDF
+        - Word (docx, doc, odt, rtf)
+        - Excel (xlsx, xls, ods, csv)
+        - PowerPoint (pptx, ppt, odp)
+        - Book (epub, fb2)
+        - Archive (zip, rar, 7z, tar)
+        - Text, Markdown, JSON, code
+        - Web page (html)
+        - Picture
+        - Audio or video
+        - Other / Другое
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: List version / Версия List
+      description: The window "About List" in the ⋮ menu of the main screen shows it.
+      placeholder: "2.3.0"
+    validations:
+      required: true
+  - type: input
+    id: android
+    attributes:
+      label: Android version and phone / Версия Android и телефон
+      placeholder: "Android 14, Pixel 7"
+    validations:
+      required: true
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else / Что ещё
+      description: Screenshots are welcome, as long as they show nothing private.
+    validations:
+      required: false
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Before you send / Перед отправкой
+      options:
+        - label: Nothing private is attached to this issue / В этом сообщении нет личных данных
+          required: true

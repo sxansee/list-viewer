@@ -54,6 +54,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -62,6 +63,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
@@ -75,6 +78,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
@@ -92,22 +96,51 @@ import java.nio.ByteBuffer
 import java.nio.charset.CodingErrorAction
 import java.util.concurrent.atomic.AtomicBoolean
 
-class WebHolder { var view: WebView? = null }
+/** The web view of a document. Besides showing it, it can tell how far the page is scrolled. */
+class DocView(c: Context) : WebView(c) {
+    /** The scroll position in thousandths of what can be scrolled: 0 at the top, 1000 at the bottom. */
+    fun place(): Int {
+        val room = computeVerticalScrollRange() - computeVerticalScrollExtent()
+        return if (room > 24) (scrollY.toLong() * 1000L / room).toInt().coerceIn(0, 1000) else 0
+    }
+}
+
+class WebHolder { var view: DocView? = null }
 
 private const val HOST = "appassets.androidplatform.net"
 
 /* ---------- PDF ---------- */
 
+/**
+ * Inverts the lightness of a page and turns the hues back by half a circle, so that white paper goes dark and black
+ * text goes light, while photographs and colored charts stay close to their own colors.
+ */
+private val DARK_PAGE: ColorFilter = ColorFilter.colorMatrix(
+    ColorMatrix(
+        floatArrayOf(
+            0.574f, -1.430f, -0.144f, 0f, 255f,
+            -0.426f, -0.430f, -0.144f, 0f, 255f,
+            -0.426f, -1.430f, 0.856f, 0f, 255f,
+            0f, 0f, 0f, 1f, 0f
+        )
+    )
+)
+
+/**
+ * A PDF as a column of pages. [start] is the page to open at (where reading stopped), [onPage] is told the page at the
+ * top of the screen when scrolling stops and when the document is closed, and [dark] shows the pages with inverted colors.
+ */
 @Composable
-fun PdfView(uri: Uri) {
+fun PdfView(uri: Uri, start: Int, dark: Boolean, onPage: (Int) -> Unit) {
     val ctx = LocalContext.current
+    val save = rememberUpdatedState(onPage)
     var pdf by remember(uri) { mutableStateOf<PdfRenderer?>(null) }
     var err by remember(uri) { mutableStateOf(false) }
     var zoom by remember(uri) { mutableFloatStateOf(1f) }
     var live by remember(uri) { mutableFloatStateOf(1f) }
     var pill by remember(uri) { mutableStateOf(true) }
     val lock = remember(uri) { Mutex() }
-    val list = rememberLazyListState()
+    val list = rememberLazyListState(initialFirstVisibleItemIndex = start)
     val hs = rememberScrollState()
     val cur by remember { derivedStateOf { list.firstVisibleItemIndex + 1 } }
     // The page counter is shown while the document is being scrolled and fades out a moment later.
@@ -115,6 +148,7 @@ fun PdfView(uri: Uri) {
         if (list.isScrollInProgress) {
             pill = true
         } else {
+            save.value(list.firstVisibleItemIndex)
             delay(1500)
             pill = false
         }
@@ -133,6 +167,7 @@ fun PdfView(uri: Uri) {
         }
         onDispose {
             pdf = null
+            save.value(list.firstVisibleItemIndex)
             val done = r
             // A page that is still being drawn holds the lock, so the renderer is closed after it lets go.
             CoroutineScope(Dispatchers.IO).launch {
@@ -179,7 +214,7 @@ fun PdfView(uri: Uri) {
                         contentPadding = PaddingValues(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(p.pageCount) { i -> PdfPage(p, i, minOf((base * zoom).toInt(), 2000), lock) }
+                        items(p.pageCount) { i -> PdfPage(p, i, minOf((base * zoom).toInt(), 2000), lock, dark) }
                     }
                 }
                 AnimatedVisibility(
@@ -206,7 +241,7 @@ fun PdfView(uri: Uri) {
 }
 
 @Composable
-fun PdfPage(pdf: PdfRenderer, i: Int, w: Int, lock: Mutex) {
+fun PdfPage(pdf: PdfRenderer, i: Int, w: Int, lock: Mutex, dark: Boolean) {
     var bmp by remember(i) { mutableStateOf<Bitmap?>(null) }
     LaunchedEffect(i, w) {
         val r = try {
@@ -227,8 +262,8 @@ fun PdfPage(pdf: PdfRenderer, i: Int, w: Int, lock: Mutex) {
     }
     val b = bmp
     val page = Modifier.fillMaxWidth().shadow(2.dp, RoundedCornerShape(3.dp))
-    if (b != null) Image(b.asImageBitmap(), null, page, contentScale = ContentScale.FillWidth)
-    else Box(page.height(420.dp).background(Color.White))
+    if (b != null) Image(b.asImageBitmap(), null, page, contentScale = ContentScale.FillWidth, colorFilter = if (dark) DARK_PAGE else null)
+    else Box(page.height(420.dp).background(if (dark) Color.Black else Color.White))
 }
 
 /* ---------- Images ---------- */
@@ -276,18 +311,41 @@ fun ZoomImage(uri: Uri, mime: String) {
 
 /* ---------- Audio and video ---------- */
 
+/** Where playback is to be remembered: the current moment, or the start when the end was reached. */
+private fun restingPlace(p: Player): Long {
+    val total = p.duration
+    val at = p.currentPosition
+    return if (total > 0L && at >= total - 3000L) 0L else at.coerceAtLeast(0L)
+}
+
+/**
+ * Audio and video. Playback starts at [start] (milliseconds, where it stopped last time); [onPos] is told the moment
+ * every few seconds while playing and when the player is closed.
+ */
 @OptIn(UnstableApi::class)
 @Composable
-fun MediaView(uri: Uri, video: Boolean) {
+fun MediaView(uri: Uri, video: Boolean, start: Long, onPos: (Long) -> Unit) {
     val ctx = LocalContext.current
+    val save = rememberUpdatedState(onPos)
     val player = remember(uri) {
         ExoPlayer.Builder(ctx).build().apply {
-            setMediaItem(MediaItem.fromUri(uri))
+            setMediaItem(MediaItem.fromUri(uri), start)
             prepare()
             playWhenReady = true
         }
     }
-    DisposableEffect(player) { onDispose { player.release() } }
+    LaunchedEffect(player) {
+        while (true) {
+            delay(5000)
+            if (player.isPlaying) save.value(restingPlace(player))
+        }
+    }
+    DisposableEffect(player) {
+        onDispose {
+            save.value(restingPlace(player))
+            player.release()
+        }
+    }
     AndroidView(
         modifier = Modifier.fillMaxSize(),
         factory = { c ->
@@ -333,9 +391,33 @@ private fun docResponse(c: Context, uri: Uri, info: Info, path: String): WebReso
     } catch (e: Exception) { status(500, "Error") }
 }
 
+/** Puts a page at a place given in thousandths of what can be scrolled (the place is the argument of the function this makes). */
+private const val SCROLL_TO =
+    "(function(p){var e=document.scrollingElement||document.documentElement,r=e.scrollHeight-innerHeight;" +
+        "if(r>0)scrollTo(0,Math.round(r*p/1000))})"
+
+/**
+ * A document shown in a web view: the built-in viewer page for most formats, the file itself for HTML.
+ *
+ * [start] is the place where reading stopped (thousandths of the page height) and [onPos] is told the place every
+ * moment and when the document is closed. [zoom] is the size of text in percent. The place is saved only once the page
+ * has been put at [start], so that leaving early never overwrites it with the top of the page.
+ */
 @Composable
-fun WebDoc(uri: Uri, info: Info, net: AtomicBoolean, holder: WebHolder, onFind: (String) -> Unit) {
+fun WebDoc(
+    uri: Uri,
+    info: Info,
+    net: AtomicBoolean,
+    holder: WebHolder,
+    start: Long,
+    zoom: Int,
+    onPos: (Long) -> Unit,
+    onFind: (String) -> Unit
+) {
     val dark = if (isSystemInDarkTheme()) 1 else 0
+    val html = info.route == Route.HTML
+    val save = rememberUpdatedState(onPos)
+    val ready = remember(uri) { AtomicBoolean(false) }
     // "en" or "ru": the language of the messages inside the viewer page, taken from the same resources as the app UI.
     val lang = stringResource(R.string.web_lang)
     // Seen only until the page paints, so a dark theme does not flash white.
@@ -344,7 +426,36 @@ fun WebDoc(uri: Uri, info: Info, net: AtomicBoolean, holder: WebHolder, onFind: 
     LaunchedEffect(dark) {
         if (info.route == Route.WEB) holder.view?.evaluateJavascript("document.documentElement.classList.toggle('d', $dark === 1)", null)
     }
-    DisposableEffect(uri) { onDispose { holder.view?.destroy(); holder.view = null } }
+    // The size of text follows the reading options at once: the viewer page scales its own text, a web page the browser does.
+    LaunchedEffect(zoom) {
+        val w = holder.view ?: return@LaunchedEffect
+        if (html) {
+            w.settings.textZoom = zoom
+        } else {
+            w.evaluateJavascript("window.__zoom&&window.__zoom($zoom)", null)
+        }
+    }
+    // While the document is open its place is saved now and then (and once more when it is closed, below).
+    LaunchedEffect(uri) {
+        while (true) {
+            delay(1500)
+            val w = holder.view ?: continue
+            if (ready.get()) {
+                save.value(w.place().toLong())
+            } else if (!html) {
+                // The viewer page says when it has put the document at the saved place.
+                w.evaluateJavascript("window.__posOk===true") { r -> if (r == "true") ready.set(true) }
+            }
+        }
+    }
+    DisposableEffect(uri) {
+        onDispose {
+            val w = holder.view
+            if (w != null && ready.get()) save.value(w.place().toLong())
+            w?.destroy()
+            holder.view = null
+        }
+    }
     AndroidView(
         modifier = Modifier.fillMaxSize(),
         factory = { c ->
@@ -352,7 +463,7 @@ fun WebDoc(uri: Uri, info: Info, net: AtomicBoolean, holder: WebHolder, onFind: 
                 .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(c))
                 .addPathHandler("/doc/") { p -> docResponse(c, uri, info, p) }
                 .build()
-            WebView(c).apply {
+            DocView(c).apply {
                 holder.view = this
                 setBackgroundColor(bg)
                 settings.javaScriptEnabled = true
@@ -363,7 +474,8 @@ fun WebDoc(uri: Uri, info: Info, net: AtomicBoolean, holder: WebHolder, onFind: 
                 settings.builtInZoomControls = true
                 settings.displayZoomControls = false
                 settings.useWideViewPort = true
-                settings.loadWithOverviewMode = info.route == Route.HTML
+                settings.loadWithOverviewMode = html
+                if (html) settings.textZoom = zoom
                 setFindListener { i, n, _ -> onFind(if (n == 0) "0" else "${i + 1}/$n") }
                 webViewClient = object : WebViewClient() {
                     override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
@@ -379,6 +491,14 @@ fun WebDoc(uri: Uri, info: Info, net: AtomicBoolean, holder: WebHolder, onFind: 
                         return null
                     }
 
+                    override fun onPageFinished(view: WebView, url: String?) {
+                        // A web page is put at the saved place as soon as it has loaded; the viewer page does that itself.
+                        if (html && !ready.get()) {
+                            if (start > 0L) view.evaluateJavascript(SCROLL_TO + "(" + start + ")", null)
+                            view.postDelayed({ ready.set(true) }, 600)
+                        }
+                    }
+
                     override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                         val s = request.url.scheme
                         if (request.url.host != HOST && (s == "http" || s == "https" || s == "mailto" || s == "tel")) {
@@ -388,8 +508,8 @@ fun WebDoc(uri: Uri, info: Info, net: AtomicBoolean, holder: WebHolder, onFind: 
                         return false
                     }
                 }
-                val url = if (info.route == Route.HTML) "https://$HOST/doc/file"
-                else "https://$HOST/assets/viewer.html?ext=${Uri.encode(info.ext)}&d=$dark&l=${Uri.encode(lang)}"
+                val url = if (html) "https://$HOST/doc/file"
+                else "https://$HOST/assets/viewer.html?ext=${Uri.encode(info.ext)}&d=$dark&l=${Uri.encode(lang)}&z=$zoom&p=$start"
                 loadUrl(url)
             }
         }

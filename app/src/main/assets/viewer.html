@@ -39,14 +39,14 @@ a{color:var(--ac)}
 #bar button.a{background:var(--sel);color:var(--on-sel);border-color:transparent}
 
 /* reading text (books, Markdown, converted documents) */
-.r{max-width:42em;margin:0 auto;padding:12px 18px 56px;font-size:17px;line-height:1.65;overflow-wrap:break-word}
+.r{max-width:42em;margin:0 auto;padding:12px 18px 56px;font-size:calc(17px*var(--z,1));line-height:1.65;overflow-wrap:break-word}
 .r h1,.r h2,.r h3,.r h4{line-height:1.3;margin:1.4em 0 .5em}
 .r h1{font-size:1.6em}.r h2{font-size:1.35em}.r h3{font-size:1.15em}.r h4{font-size:1em}
 .r p{margin:.7em 0}
 .r img,.r svg{max-width:100%;height:auto}
 .r blockquote{margin:1em 0;padding:.1em 1em;border-left:3px solid var(--ac);color:var(--mu)}
 .r hr{border:0;border-top:1px solid var(--bd);margin:2em 0}
-.r pre{margin:1em 0;padding:12px 14px;border-radius:12px;background:var(--card);overflow-x:auto;font:13px/1.5 ui-monospace,Menlo,Consolas,monospace}
+.r pre{margin:1em 0;padding:12px 14px;border-radius:12px;background:var(--card);overflow-x:auto;font:calc(13px*var(--z,1))/1.5 ui-monospace,Menlo,Consolas,monospace}
 .r code{padding:.1em .35em;border-radius:6px;background:var(--head);font:.9em ui-monospace,Menlo,Consolas,monospace}
 .r pre code{padding:0;background:none;font-size:inherit}
 .r table{display:block;width:max-content;max-width:100%;overflow-x:auto;border-collapse:collapse;font-size:.92em;margin:1em 0}
@@ -54,7 +54,7 @@ a{color:var(--ac)}
 .r th{background:var(--head);text-align:left}
 
 /* plain text, code, JSON */
-.t{margin:0;padding:12px 16px 56px;white-space:pre-wrap;word-break:break-word;font:13px/1.55 ui-monospace,Menlo,Consolas,monospace;tab-size:4}
+.t{margin:0;padding:12px 16px 56px;white-space:pre-wrap;word-break:break-word;font:calc(13px*var(--z,1))/1.55 ui-monospace,Menlo,Consolas,monospace;tab-size:4}
 .more{margin:12px 16px;color:var(--mu);font-size:14px;text-align:center}
 .i{display:block;max-width:100%;height:auto;margin:16px auto}
 .ta{color:var(--mu);font-style:italic}.st{margin:.6em 0 .6em 1.2em}
@@ -73,7 +73,7 @@ a{color:var(--ac)}
 .pptx-preview-wrapper tr:first-child td{font-weight:600}
 
 /* spreadsheets (SheetJS puts the table straight into #c) */
-#c>table{border-collapse:collapse;background:var(--card);color:var(--fg);font-size:13px;margin:8px 16px 40px}
+#c>table{border-collapse:collapse;background:var(--card);color:var(--fg);font-size:calc(13px*var(--z,1));margin:8px 16px 40px}
 #c>table td,#c>table th{border:1px solid var(--bd);padding:5px 10px;white-space:nowrap;vertical-align:top}
 #c>table tr:first-child td{font-weight:600;background:var(--head)}
 #c>table tr:nth-child(even) td{background:var(--zebra)}
@@ -91,6 +91,14 @@ a{color:var(--ac)}
 .row b{display:block;font-size:15px;font-weight:500;line-height:1.3;overflow-wrap:anywhere}
 .row span{color:var(--mu);font-size:13px}
 </style>
-<script>try{if(new URLSearchParams(location.search).get('d')==='1')document.documentElement.className='d'}catch(e){}</script>
+<script>
+/* Set before anything is drawn, so that the theme and the text size never flash: ?d=1 is the dark theme, ?z= the text size in percent. */
+try{var q=new URLSearchParams(location.search),z=+q.get('z');if(q.get('d')==='1')document.documentElement.className='d';
+  if(z>=50&&z<=300)document.documentElement.style.setProperty('--z',z/100)}catch(e){}
+/* The app calls this when the text size is changed while the document is open; the page stays at the same place. */
+window.__zoom=function(p){var e=document.scrollingElement||document.documentElement,r=e.scrollHeight-innerHeight,f=r>0?e.scrollTop/r:0;
+  document.documentElement.style.setProperty('--z',Math.min(300,Math.max(50,+p||100))/100);
+  r=e.scrollHeight-innerHeight;if(r>0&&f>0)scrollTo(0,Math.round(r*f))};
+</script>
 <div id="m"><div class="sp"></div></div><div id="n" hidden></div><div id="bar"></div><div id="c"></div>
 <script src="viewer.js"></script>

@@ -11,7 +11,7 @@ android {
         minSdk = 24
         targetSdk = 34
         // The CI run number keeps versionCode growing, so every build installs over the previous one.
-        // A release takes its name from the git tag (the workflow passes it as APP_VERSION, e.g. 2.2.0); other builds are "dev".
+        // A release takes its name from the git tag (the workflow passes it as APP_VERSION, e.g. 2.3.0); other builds are "dev".
         val run = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInt()
         versionCode = 100 + run
         versionName = System.getenv("APP_VERSION")?.takeIf { it.isNotBlank() } ?: "dev-$run"
@@ -27,6 +27,8 @@ android {
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true }
+    // The unit tests (app/src/test) check the pure logic: the list, backups, sorting, names. Android classes they touch return empty values.
+    testOptions { unitTests.isReturnDefaultValues = true }
 }
 dependencies {
     implementation(platform("androidx.compose:compose-bom:2024.09.00"))
@@ -38,4 +40,5 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:1.4.1")
     implementation("androidx.media3:media3-ui:1.4.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+    testImplementation("junit:junit:4.13.2")
 }

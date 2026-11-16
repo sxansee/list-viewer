@@ -22,10 +22,13 @@
 
 - **One app for most files.** PDF, Word, Excel, PowerPoint, OpenDocument, RTF, EPUB, FB2, HTML, Markdown, JSON, plain text and code, ZIP/RAR/7z/TAR archives, pictures, audio and video.
 - **Works offline and keeps files private.** Everything is rendered on the device and nothing is uploaded.
-- **Recent files that are easy to navigate.** Grouped by day, searchable by name, filterable by file type. Removing an entry can be undone, and files that were moved or deleted are marked instead of failing silently.
-- **Your own order.** Give a file a clearer name (its extension stays locked) and sort files into folders. Names and folders live inside List, so the files on your phone are never touched.
-- **Reading tools.** Search inside documents (not yet inside PDFs), pinch and double-tap zoom, a page counter for PDFs, a *Pages / Reading view* switch for Word files, a *Slides / Text* switch for presentations, sheet tabs for workbooks, and a browsable list of the files inside an archive.
-- **Plays well with other apps.** Choose *List* from "Open with" in a file manager or messenger. *Back* returns to the app the file came from. Any file can be shared or opened in another app from the ⋮ menu.
+- **Recent files that are easy to navigate.** Grouped by day, searchable by name, filterable by file type, and sortable by date, name, size or type. Pin the files you need most to the top. Removing an entry can be undone, and files that were moved or deleted are marked instead of failing silently.
+- **Pick up where you left off.** List remembers the page of a PDF, the place in a document, and the moment in a song or video, and returns you there the next time you open the file.
+- **Your own order.** Give a file a clearer name (its extension stays locked) and sort files into colored folders. Names and folders live inside List, so the files on your phone are never touched. To give a file the new name on the phone itself, use **Save a copy…**.
+- **Several files at once.** Long-press a file to select it, then pin, move, share or remove everything selected in one go.
+- **Reading tools.** Search inside documents (not yet inside PDFs), pinch and double-tap zoom, a page counter for PDFs, a *Pages / Reading view* switch for Word files, a *Slides / Text* switch for presentations, sheet tabs for workbooks, and a browsable list of the files inside an archive. Reading options set the text size and can show PDF pages dark in the dark theme.
+- **Your list is safe.** **Back up the list** saves the names, folders and reading places to a small file; **Restore from a backup** brings them back after a reinstall or on a new phone. If Android loses access to a file, **Locate file…** points the entry at it again without losing its name, folder or place.
+- **Plays well with other apps.** Choose *List* from "Open with" in a file manager or messenger, or share files to it from the system *Share* menu. *Back* returns to the app the file came from. Any file can be shared or opened in another app from the ⋮ menu.
 - **Looks at home on your phone.** Light and dark themes follow the system, and the interface is available in English and Russian (it follows the system language).
 
 ## Supported formats
@@ -50,10 +53,12 @@
 - Legacy formats go through a converter that is not perfect. If it fails, Word and PowerPoint files fall back to their text.
 - Support for HEIC, HEIF and AVIF pictures depends on the Android version.
 - Very large files can be slow, because documents are converted on the phone.
+- A file shared to List from another app usually gets only temporary access from Android. It opens at once, but after the app restarts it may show as "not found" in the list. Use **Locate file…** to point the entry at it again, or open such files with the **Open file** button, which keeps the access.
+- A backup holds the names and addresses of files, not the files themselves. After restoring on a new phone the entries are shown as "not found" until you point them at the files with **Locate file…**.
 
 ## Privacy
 
-List does not collect, store or send anything. The `INTERNET` permission exists for one purpose: an HTML file that refers to online images or styles can load them, but only after you choose **Load content from the internet** in the ⋮ menu of that file. Until then every network request from the page is blocked. Backups of app data are turned off.
+List does not collect, store or send anything. Names, folders, pinned files and reading places stay on the device; a backup file is created only when you ask for it and goes where you save it. The `INTERNET` permission exists for one purpose: an HTML file that refers to online images or styles can load them, but only after you choose **Load content from the internet** in the ⋮ menu of that file. Until then every network request from the page is blocked. Backups of app data are turned off.
 
 ## PowerPoint rendering
 
@@ -74,16 +79,19 @@ Requirements: JDK 17 and the Android SDK with platform 34 (Android Studio sets b
 ```bash
 ./gradlew assembleDebug
 # → app/build/outputs/apk/debug/app-debug.apk
+
+./gradlew testDebugUnitTest
+# unit tests of the list, backups, sorting and names (app/src/test)
 ```
 
 **Automatic builds and releases.** `.github/workflows/build.yml` builds a debug APK on every push and keeps it for 30 days as a workflow artifact (Actions, open the run, section Artifacts). Every release is a separate entry under *Releases*: push a version tag, and the workflow builds the app and publishes it with `List.apk` attached and generated release notes.
 
 ```bash
-git tag v2.2.0
-git push origin v2.2.0
+git tag v2.3.0
+git push origin v2.3.0
 ```
 
-A release can also be started by hand from the Actions tab (*Run workflow*, with the version filled in). A version with a suffix, such as `2.3.0-beta.1`, is published as a pre-release. The *Download the APK* link at the top always leads to the newest regular release.
+A release can also be started by hand from the Actions tab (*Run workflow*, with the version filled in). A version with a suffix, such as `2.4.0-beta.1`, is published as a pre-release. A separate job runs the unit tests next to every build; a failing test shows up as a warning and never blocks a release. The *Download the APK* link at the top always leads to the newest regular release.
 
 The APK is signed with the debug key stored in the repository (`app/debug.keystore`), so every build installs over the previous one. It is a development key, not a secret one: if you publish the app anywhere else, sign it with your own key.
 
@@ -94,13 +102,17 @@ The package name `app.fileviewer` is kept on purpose, so new versions update exi
 ```
 app/src/main/
 ├── java/app/fileviewer/
-│   ├── MainActivity.kt    entry point and navigation between the two screens
-│   ├── HomeScreen.kt      file list: search, filters, folders, undo
+│   ├── MainActivity.kt    entry point, navigation between the two screens, files shared to the app
+│   ├── HomeScreen.kt      file list: search, filters, sorting, selection, folders, backup, undo
+│   ├── HomeParts.kt       the pieces of that screen: rows, folder cards, selection bar
 │   ├── ViewerScreen.kt    top bar, actions and the content for each file type
-│   ├── Viewers.kt         PDF, pictures, audio/video and the WebView host
+│   ├── Viewers.kt         PDF, pictures, audio/video and the WebView host (with reading place)
 │   ├── Organize.kt        dialogs for renaming files and managing folders
+│   ├── Options.kt         reading options and "Save a copy…"
 │   ├── FileInfo.kt        file types, metadata, share and "open in another app"
-│   ├── Recents.kt         storage of the list, chosen names and folders
+│   ├── Recents.kt         storage of the list: names, folders, pins, reading places
+│   ├── Backup.kt          the backup file (JSON) and its safe reader
+│   ├── Sorting.kt, Names.kt, Settings.kt
 │   └── Theme.kt, Components.kt
 ├── assets/
 │   ├── viewer.html, viewer.js    the in-app document viewer
@@ -109,7 +121,8 @@ app/src/main/
 └── res/
     ├── values/, values-ru/       English and Russian strings
     └── drawable/, mipmap-*/      icons and the launcher logo
-tools/                            maintenance scripts for the PowerPoint layer
+app/src/test/                     unit tests (the list, backups, sorting, names)
+tools/                            maintenance scripts (PowerPoint layer; Update-List.ps1 applies a project archive on Windows)
 docs/assets/                      logo
 ```
 

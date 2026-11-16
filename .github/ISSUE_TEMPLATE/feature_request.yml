@@ -1,0 +1,31 @@
+name: Idea or request / Идея или пожелание
+description: Suggest a feature or a change / Предложите возможность или улучшение
+title: "[Idea] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        List is a small offline viewer, so ideas that keep it simple, private and offline are the easiest to take in. Русский язык тоже подходит.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do? / Что вы хотите сделать?
+      description: Describe the situation first. A feature is easier to design when the problem is clear.
+      placeholder: "I often read long PDFs and want to search inside them"
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help? / Что бы помогло?
+      description: Your idea of a solution, if you have one.
+    validations:
+      required: false
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What do you do now? / Что вы делаете сейчас?
+      description: Another app or a workaround you use today, if any.
+    validations:
+      required: false
