@@ -23,6 +23,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,8 +44,10 @@ import java.util.concurrent.atomic.AtomicBoolean
 @Composable
 fun Viewer(uri: Uri, back: () -> Unit, store: Recents, settings: Settings) {
     val ctx = LocalContext.current
-    val info = remember(uri) { infoOf(ctx, uri) }
+    // A file opened from the list was just read by the list; asking the provider once more would only hold up the first frame.
+    val info = remember(uri) { cachedInfo(uri.toString())?.takeIf { it.available } ?: infoOf(ctx, uri) }
     val holder = remember(uri) { WebHolder() }
+    val pdfHolder = remember(uri) { PdfHolder() }
     val net = remember(uri) { AtomicBoolean(false) }
     var netOn by remember(uri) { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
@@ -62,8 +65,12 @@ fun Viewer(uri: Uri, back: () -> Unit, store: Recents, settings: Settings) {
     val saveCopy = rememberCopySaver()
     val shown = displayName(info, alias)
     val webLike = info.route == Route.WEB || info.route == Route.HTML
+    val isPdf = info.route == Route.PDF
     val mime = info.mime ?: mimeOf(info.ext)
-    val hasOptions = info.available && (webLike || info.route == Route.PDF)
+    val hasOptions = info.available && (webLike || isPdf)
+    // The text of a PDF is read for the search only when the person asks for it; the file is let go when the viewer is left.
+    val pdfFind = remember(uri) { PdfSearch(ctx, uri) }
+    DisposableEffect(uri) { onDispose { pdfFind.close() } }
 
     val typeText = stringResource(info.cat.titleRes)
     val subtitle = remember(info, typeText) {
@@ -111,7 +118,7 @@ fun Viewer(uri: Uri, back: () -> Unit, store: Recents, settings: Settings) {
                     }
                 },
                 actions = {
-                    if (webLike && info.available) {
+                    if ((webLike || isPdf) && info.available) {
                         IconButton(onClick = {
                             if (finding) holder.view?.clearMatches()
                             finding = !finding
@@ -199,6 +206,9 @@ fun Viewer(uri: Uri, back: () -> Unit, store: Recents, settings: Settings) {
                     found = ""
                 }
             }
+            if (finding && isPdf) {
+                PdfFindBar(pdfFind, pdfHolder) { finding = false }
+            }
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 if (!info.available) {
                     MessageState(
@@ -210,9 +220,9 @@ fun Viewer(uri: Uri, back: () -> Unit, store: Recents, settings: Settings) {
                     }
                 } else {
                     when (info.route) {
-                        Route.PDF -> PdfView(uri, start.toInt(), settings.darkPdf && isSystemInDarkTheme()) { savePos(it.toLong()) }
+                        Route.PDF -> PdfView(uri, start.toInt(), settings.darkPdf && isSystemInDarkTheme(), pdfHolder) { savePos(it.toLong()) }
                         Route.IMAGE -> ZoomImage(uri, mime)
-                        Route.MEDIA -> MediaView(uri, info.isVideo(), start, savePos)
+                        Route.MEDIA -> MediaView(uri, info.isVideo(), start, shown, mime, savePos)
                         Route.HTML, Route.WEB -> WebDoc(uri, info, net, holder, start, settings.textScale, savePos) { found = it }
                     }
                 }

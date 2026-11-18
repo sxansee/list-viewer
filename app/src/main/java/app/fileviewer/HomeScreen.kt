@@ -56,6 +56,9 @@ import java.util.Locale
  */
 private val infoCache = HashMap<String, Info>()
 
+/** What the list knew about a file the last time it looked, or null for a file it has not seen. Used by the main thread only. */
+fun cachedInfo(uri: String): Info? = infoCache[uri]
+
 /** Marks "the selected files are in different folders" for [MoveDialog], whose current choice is then none of the folders. */
 private const val MIXED = "\u0000mixed"
 
@@ -198,6 +201,8 @@ fun HomeScreen(
         if (u != null && old != null) {
             keepRead(ctx, u)
             store.relink(old.uri, u.toString())
+            // The old address is of no use any more.
+            if (old.uri != u.toString()) releaseRead(ctx, Uri.parse(old.uri))
             // The same file picked again has the same address, and so a new check is needed to see it is back.
             fresh.remove(u.toString())
             reload++
@@ -288,6 +293,10 @@ fun HomeScreen(
                 if (r == SnackbarResult.ActionPerformed) {
                     store.restoreAll(gone)
                     onChanged()
+                } else {
+                    // The removal is final now, so the lasting access to these files is given back (unless a file came back meanwhile).
+                    val still = store.list().map { it.uri }.toSet()
+                    for (g in gone) if (g.uri !in still) releaseRead(ctx, Uri.parse(g.uri))
                 }
             }
         }
@@ -520,8 +529,11 @@ fun HomeScreen(
                 TextButton(
                     onClick = {
                         confirmClear = false
+                        // What is cleared: the files that are in no folder and not starred (see Recents.clear).
+                        val gone = items.filter { it.folder == null && !it.pinned }
                         store.clear()
                         onChanged()
+                        for (g in gone) releaseRead(ctx, Uri.parse(g.uri))
                     }
                 ) { Text(stringResource(R.string.clear)) }
             },

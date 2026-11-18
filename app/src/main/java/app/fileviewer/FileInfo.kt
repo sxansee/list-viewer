@@ -170,3 +170,15 @@ fun keepRead(c: Context, u: Uri) {
         // No lasting grant is offered for this document.
     }
 }
+
+/**
+ * Gives back the lasting read grant of a document that has left the list for good. The system allows an app only a limited
+ * number of them and, when the limit is reached, drops the oldest, which could be a file that is still in the list.
+ */
+fun releaseRead(c: Context, u: Uri) {
+    try {
+        c.contentResolver.releasePersistableUriPermission(u, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    } catch (e: Exception) {
+        // There was no lasting grant for this document.
+    }
+}

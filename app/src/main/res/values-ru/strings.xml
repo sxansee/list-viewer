@@ -33,6 +33,9 @@
     <string name="about_version">Версия %1$s</string>
     <string name="about_body">Небольшой открытый просмотрщик: документы, таблицы, презентации, книги, архивы и медиа открываются прямо на устройстве, без облака и без аккаунта.</string>
     <string name="about_license">Лицензия AGPL-3.0. Сторонние компоненты перечислены в THIRD_PARTY.txt.</string>
+    <string name="about_debug">Отладочная сборка: работает медленнее релизной версии.</string>
+    <string name="about_copy">Скопировать сведения</string>
+    <string name="about_copied">Сведения скопированы</string>
 
     <!-- Действия с файлом -->
     <string name="action_share">Поделиться</string>
@@ -146,6 +149,30 @@
     <string name="find_prev">Предыдущее совпадение</string>
     <string name="find_next">Следующее совпадение</string>
     <string name="find_close">Закрыть поиск</string>
+
+    <!-- Поиск внутри PDF -->
+    <string name="pdf_find_short">Введите не меньше двух символов.</string>
+    <string name="pdf_find_opening">Открываю текст документа…</string>
+    <string name="pdf_find_reading">Читаю текст страниц: %1$d из %2$d</string>
+    <string name="pdf_find_none">Ничего не найдено.</string>
+    <string name="pdf_find_none_yet">Пока ничего не найдено. Прочитано страниц: %1$d из %2$d.</string>
+    <string name="pdf_find_no_text">В этом PDF нет текста для поиска. Возможно, он состоит из сканов страниц.</string>
+    <string name="pdf_find_failed">В этом PDF поиск недоступен.</string>
+    <string name="pdf_find_where">Страница %1$d</string>
+    <plurals name="pdf_find_matches">
+        <item quantity="one">%d совпадение</item>
+        <item quantity="few">%d совпадения</item>
+        <item quantity="many">%d совпадений</item>
+        <item quantity="other">%d совпадения</item>
+    </plurals>
+
+    <!-- Аудио и видео -->
+    <string name="audio_play">Воспроизвести</string>
+    <string name="audio_pause">Пауза</string>
+    <string name="audio_back">Назад на 10 секунд</string>
+    <string name="audio_forward">Вперёд на 10 секунд</string>
+    <string name="media_error_title">Не удалось воспроизвести файл</string>
+    <string name="media_error_body">Файл может быть повреждён, либо его формат или кодек не поддерживается на этом устройстве. Можно попробовать другое приложение.</string>
 
     <!-- Ошибки -->
     <string name="pdf_error_title">Не удалось открыть PDF</string>

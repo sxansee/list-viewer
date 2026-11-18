@@ -58,8 +58,8 @@ body:
     id: version
     attributes:
       label: List version / Версия List
-      description: The window "About List" in the ⋮ menu of the main screen shows it.
-      placeholder: "2.3.0"
+      description: The window "About List" in the ⋮ menu of the main screen shows it, and its "Copy details" button copies the version together with the Android version and the phone, so that you can paste them here and into the field below.
+      placeholder: "2.4.0"
     validations:
       required: true
   - type: input

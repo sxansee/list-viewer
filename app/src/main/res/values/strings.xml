@@ -35,6 +35,9 @@
     <string name="about_version">Version %1$s</string>
     <string name="about_body">A small open-source viewer that opens documents, spreadsheets, presentations, books, archives and media on the device, with no cloud and no account.</string>
     <string name="about_license">Licensed under AGPL-3.0. Third-party components are listed in THIRD_PARTY.txt.</string>
+    <string name="about_debug">Debug build: slower than the release version.</string>
+    <string name="about_copy">Copy details</string>
+    <string name="about_copied">Details copied</string>
 
     <!-- File actions -->
     <string name="action_share">Share</string>
@@ -146,6 +149,28 @@
     <string name="find_prev">Previous match</string>
     <string name="find_next">Next match</string>
     <string name="find_close">Close search</string>
+
+    <!-- Search inside a PDF -->
+    <string name="pdf_find_short">Type at least 2 characters.</string>
+    <string name="pdf_find_opening">Opening the text of the document…</string>
+    <string name="pdf_find_reading">Reading the text of the pages: %1$d of %2$d</string>
+    <string name="pdf_find_none">Nothing found.</string>
+    <string name="pdf_find_none_yet">Nothing found yet. Pages read: %1$d of %2$d.</string>
+    <string name="pdf_find_no_text">This PDF has no text to search. It may consist of scanned pages.</string>
+    <string name="pdf_find_failed">This PDF cannot be searched.</string>
+    <string name="pdf_find_where">Page %1$d</string>
+    <plurals name="pdf_find_matches">
+        <item quantity="one">%d match</item>
+        <item quantity="other">%d matches</item>
+    </plurals>
+
+    <!-- Audio and video -->
+    <string name="audio_play">Play</string>
+    <string name="audio_pause">Pause</string>
+    <string name="audio_back">Back 10 seconds</string>
+    <string name="audio_forward">Forward 10 seconds</string>
+    <string name="media_error_title">Couldn\'t play this file</string>
+    <string name="media_error_body">The file may be damaged, or its format or codec may not be supported on this device. You can try another app.</string>
 
     <!-- Errors -->
     <string name="pdf_error_title">Couldn\'t open this PDF</string>

@@ -41,6 +41,8 @@ class MainActivity : ComponentActivity() {
             external = savedInstanceState.getBoolean(KEY_EXTERNAL)
         } else {
             takeIntent(intent)
+            // The list is what is shown first, so the web view that documents need is got ready in the background.
+            if (opened == null) warmUpWebView(applicationContext)
         }
         setContent {
             AppTheme {

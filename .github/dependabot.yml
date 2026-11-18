@@ -1,0 +1,14 @@
+# Dependabot proposes updates of the libraries and of the GitHub Actions once a month, each as a pull request.
+# A pull request builds like any other push, so a green run means that the update at least compiles.
+version: 2
+updates:
+  - package-ecosystem: gradle
+    directory: "/"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5

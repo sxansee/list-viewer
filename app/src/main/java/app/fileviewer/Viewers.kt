@@ -5,6 +5,8 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.pdf.PdfRenderer
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import android.os.ParcelFileDescriptor
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -54,6 +56,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -77,15 +80,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.media3.common.MediaItem
-import androidx.media3.common.Player
-import androidx.media3.common.util.UnstableApi
-import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.ui.PlayerView
 import androidx.webkit.WebViewAssetLoader
 import coil.compose.AsyncImage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -107,6 +106,24 @@ class DocView(c: Context) : WebView(c) {
 
 class WebHolder { var view: DocView? = null }
 
+/**
+ * The first web view of a process takes a few hundred milliseconds, because the system has to load its browser engine.
+ * One is made once, a moment after the app has started and while it is idle, and thrown away: the engine stays loaded, so
+ * the first document does not make the screen stall while it slides in.
+ */
+fun warmUpWebView(c: Context) {
+    Handler(Looper.getMainLooper()).postDelayed({
+        Looper.myQueue().addIdleHandler {
+            try {
+                WebView(c).destroy()
+            } catch (e: Throwable) {
+                // No web view on this device: documents that need one say so when they are opened.
+            }
+            false
+        }
+    }, 1500L)
+}
+
 private const val HOST = "appassets.androidplatform.net"
 
 /* ---------- PDF ---------- */
@@ -126,13 +143,31 @@ private val DARK_PAGE: ColorFilter = ColorFilter.colorMatrix(
     )
 )
 
+/** Opens a document for drawing, or returns null when it cannot be read (damaged, protected by a password, gone). */
+private fun openPdf(ctx: Context, uri: Uri): PdfRenderer? {
+    var fd: ParcelFileDescriptor? = null
+    return try {
+        fd = ctx.contentResolver.openFileDescriptor(uri, "r")
+        PdfRenderer(fd!!)
+    } catch (e: Exception) {
+        // The renderer owns the descriptor only once it has been created.
+        try { fd?.close() } catch (x: Exception) { }
+        null
+    } catch (e: OutOfMemoryError) {
+        try { fd?.close() } catch (x: Exception) { }
+        null
+    }
+}
+
 /**
  * A PDF as a column of pages. [start] is the page to open at (where reading stopped), [onPage] is told the page at the
  * top of the screen when scrolling stops and when the document is closed, and [dark] shows the pages with inverted colors.
+ * [holder] lets the search bar scroll the document to a page.
  */
 @Composable
-fun PdfView(uri: Uri, start: Int, dark: Boolean, onPage: (Int) -> Unit) {
+fun PdfView(uri: Uri, start: Int, dark: Boolean, holder: PdfHolder, onPage: (Int) -> Unit) {
     val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
     val save = rememberUpdatedState(onPage)
     var pdf by remember(uri) { mutableStateOf<PdfRenderer?>(null) }
     var err by remember(uri) { mutableStateOf(false) }
@@ -154,25 +189,30 @@ fun PdfView(uri: Uri, start: Int, dark: Boolean, onPage: (Int) -> Unit) {
         }
     }
     DisposableEffect(uri) {
-        var r: PdfRenderer? = null
-        var fd: ParcelFileDescriptor? = null
-        try {
-            fd = ctx.contentResolver.openFileDescriptor(uri, "r")
-            r = PdfRenderer(fd!!)
-            pdf = r
-        } catch (e: Exception) {
-            err = true
-            // The renderer owns the descriptor only once it has been created.
-            try { fd?.close() } catch (x: Exception) { }
+        // A big file takes a while to open, so that happens away from the main thread and the pages appear when it is done.
+        val opening = CoroutineScope(Dispatchers.IO).async { openPdf(ctx, uri) }
+        val waiting = scope.launch {
+            val r = opening.await()
+            if (r != null) pdf = r else err = true
         }
         onDispose {
+            waiting.cancel()
             pdf = null
             save.value(list.firstVisibleItemIndex)
-            val done = r
             // A page that is still being drawn holds the lock, so the renderer is closed after it lets go.
             CoroutineScope(Dispatchers.IO).launch {
+                val done = try { opening.await() } catch (e: Throwable) { null }
                 lock.withLock { try { done?.close() } catch (e: Exception) { } }
             }
+        }
+    }
+    // The search bar scrolls the document to a page through the holder.
+    DisposableEffect(holder) {
+        holder.jump = { page -> scope.launch { list.scrollToItem(page.coerceAtLeast(0)) } }
+        holder.page = { list.firstVisibleItemIndex }
+        onDispose {
+            holder.jump = {}
+            holder.page = { 0 }
         }
     }
     val p = pdf
@@ -207,7 +247,8 @@ fun PdfView(uri: Uri, start: Int, dark: Boolean, onPage: (Int) -> Unit) {
                         }
                     }
             ) {
-                Box(Modifier.fillMaxSize().graphicsLayer(scaleX = live, scaleY = live).horizontalScroll(hs)) {
+                // The pinch scale is read inside the layer, so a pinch redraws the page without composing it again.
+                Box(Modifier.fillMaxSize().graphicsLayer { scaleX = live; scaleY = live }.horizontalScroll(hs)) {
                     LazyColumn(
                         Modifier.width(with(d) { (base * zoom).toDp() }).fillMaxHeight(),
                         state = list,
@@ -302,61 +343,17 @@ fun ZoomImage(uri: Uri, mime: String) {
                         else Offset((o.x + pan.x).coerceIn(-mx, mx), (o.y + pan.y).coerceIn(-my, my))
                     }
                 }
-                .graphicsLayer(scaleX = s, scaleY = s, translationX = o.x, translationY = o.y),
+                // Scale and offset are read inside the layer: moving a finger redraws the picture without composing it again.
+                .graphicsLayer {
+                    scaleX = s
+                    scaleY = s
+                    translationX = o.x
+                    translationY = o.y
+                },
             contentScale = ContentScale.Fit,
             onError = { failed = true }
         )
     }
-}
-
-/* ---------- Audio and video ---------- */
-
-/** Where playback is to be remembered: the current moment, or the start when the end was reached. */
-private fun restingPlace(p: Player): Long {
-    val total = p.duration
-    val at = p.currentPosition
-    return if (total > 0L && at >= total - 3000L) 0L else at.coerceAtLeast(0L)
-}
-
-/**
- * Audio and video. Playback starts at [start] (milliseconds, where it stopped last time); [onPos] is told the moment
- * every few seconds while playing and when the player is closed.
- */
-@OptIn(UnstableApi::class)
-@Composable
-fun MediaView(uri: Uri, video: Boolean, start: Long, onPos: (Long) -> Unit) {
-    val ctx = LocalContext.current
-    val save = rememberUpdatedState(onPos)
-    val player = remember(uri) {
-        ExoPlayer.Builder(ctx).build().apply {
-            setMediaItem(MediaItem.fromUri(uri), start)
-            prepare()
-            playWhenReady = true
-        }
-    }
-    LaunchedEffect(player) {
-        while (true) {
-            delay(5000)
-            if (player.isPlaying) save.value(restingPlace(player))
-        }
-    }
-    DisposableEffect(player) {
-        onDispose {
-            save.value(restingPlace(player))
-            player.release()
-        }
-    }
-    AndroidView(
-        modifier = Modifier.fillMaxSize(),
-        factory = { c ->
-            PlayerView(c).apply {
-                this.player = player
-                // Audio keeps its controls on screen; video hides them after a few seconds and shows them on touch.
-                controllerShowTimeoutMs = if (video) 3000 else 0
-                controllerHideOnTouch = video
-            }
-        }
-    )
 }
 
 /* ---------- Everything else: the built-in web viewer ---------- */
@@ -418,6 +415,8 @@ fun WebDoc(
     val html = info.route == Route.HTML
     val save = rememberUpdatedState(onPos)
     val ready = remember(uri) { AtomicBoolean(false) }
+    // The place that was saved last: writing it again when nothing has moved would only make the list do needless work.
+    val last = remember(uri) { longArrayOf(start) }
     // "en" or "ru": the language of the messages inside the viewer page, taken from the same resources as the app UI.
     val lang = stringResource(R.string.web_lang)
     // Seen only until the page paints, so a dark theme does not flash white.
@@ -441,7 +440,11 @@ fun WebDoc(
             delay(1500)
             val w = holder.view ?: continue
             if (ready.get()) {
-                save.value(w.place().toLong())
+                val at = w.place().toLong()
+                if (at != last[0]) {
+                    last[0] = at
+                    save.value(at)
+                }
             } else if (!html) {
                 // The viewer page says when it has put the document at the saved place.
                 w.evaluateJavascript("window.__posOk===true") { r -> if (r == "true") ready.set(true) }
@@ -451,7 +454,10 @@ fun WebDoc(
     DisposableEffect(uri) {
         onDispose {
             val w = holder.view
-            if (w != null && ready.get()) save.value(w.place().toLong())
+            if (w != null && ready.get()) {
+                val at = w.place().toLong()
+                if (at != last[0]) save.value(at)
+            }
             w?.destroy()
             holder.view = null
         }

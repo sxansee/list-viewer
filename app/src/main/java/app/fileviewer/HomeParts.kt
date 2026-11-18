@@ -1,5 +1,10 @@
 package app.fileviewer
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.pm.ApplicationInfo
+import android.os.Build
 import android.text.format.DateUtils
 import android.text.format.Formatter
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -463,21 +468,35 @@ fun EmptyState(onPick: () -> Unit, modifier: Modifier = Modifier) {
     }
 }
 
+/** What the About dialog knows about this installation: the version, its number, and whether it is the slower debug build. */
+private class AboutInfo(val version: String, val code: Long, val debug: Boolean)
+
+@Suppress("DEPRECATION")
+private fun aboutInfo(ctx: Context): AboutInfo {
+    var version = ""
+    var code = 0L
+    try {
+        val pi = ctx.packageManager.getPackageInfo(ctx.packageName, 0)
+        version = pi.versionName ?: ""
+        code = if (Build.VERSION.SDK_INT >= 28) pi.longVersionCode else pi.versionCode.toLong()
+    } catch (e: Exception) {
+        // The dialog is shown without a version.
+    }
+    val debug = (ctx.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+    return AboutInfo(version, code, debug)
+}
+
 @Composable
 fun AboutDialog(onClose: () -> Unit) {
     val ctx = LocalContext.current
-    val version = remember {
-        try {
-            @Suppress("DEPRECATION")
-            ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName ?: ""
-        } catch (e: Exception) { "" }
-    }
+    val about = remember { aboutInfo(ctx) }
+    val appName = stringResource(R.string.app_name)
     AlertDialog(
         onDismissRequest = onClose,
         icon = { LogoTile(56.dp) },
         title = {
             Text(
-                stringResource(R.string.app_name),
+                appName,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.fillMaxWidth(),
                 textAlign = TextAlign.Center
@@ -485,12 +504,20 @@ fun AboutDialog(onClose: () -> Unit) {
         },
         text = {
             Column {
-                if (version.isNotEmpty()) {
+                if (about.version.isNotEmpty()) {
                     Text(
-                        stringResource(R.string.about_version, version),
+                        stringResource(R.string.about_version, about.version),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.primary
                     )
+                    if (about.debug) {
+                        // A debug build is what the repository falls back to when the optimised one cannot be made.
+                        Text(
+                            stringResource(R.string.about_debug),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                     Spacer(Modifier.height(8.dp))
                 }
                 Text(stringResource(R.string.about_body), style = MaterialTheme.typography.bodyMedium)
@@ -501,6 +528,28 @@ fun AboutDialog(onClose: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+        },
+        dismissButton = {
+            TextButton(onClick = {
+                val text = aboutDetails(
+                    app = appName,
+                    version = about.version,
+                    code = about.code,
+                    debug = about.debug,
+                    release = Build.VERSION.RELEASE ?: "",
+                    sdk = Build.VERSION.SDK_INT,
+                    maker = Build.MANUFACTURER ?: "",
+                    model = Build.MODEL ?: ""
+                )
+                try {
+                    val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    cm.setPrimaryClip(ClipData.newPlainText(appName, text))
+                    // Android 13 and newer say "Copied" themselves.
+                    if (Build.VERSION.SDK_INT < 33) toast(ctx, R.string.about_copied)
+                } catch (e: Exception) {
+                    // No clipboard to copy to: nothing to say.
+                }
+            }) { Text(stringResource(R.string.about_copy)) }
         },
         confirmButton = { TextButton(onClick = onClose) { Text(stringResource(R.string.close)) } }
     )
