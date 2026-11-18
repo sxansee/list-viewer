@@ -110,7 +110,7 @@ jobs:
 
       - name: Upload build log
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: build-log
           path: |
@@ -135,7 +135,7 @@ jobs:
 
       - name: Keep the APK of this build
         if: steps.ver.outputs.release != 'true'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: List-apk
           path: List.apk
@@ -209,7 +209,7 @@ jobs:
 
       - name: Keep the test report
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: test-report
           path: |
@@ -257,7 +257,7 @@ jobs:
 
       - name: Keep the lint report
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: lint-report
           path: |
