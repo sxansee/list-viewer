@@ -86,7 +86,7 @@ dependencies {
     implementation("androidx.media3:media3-session:1.4.1")
     // The session's API speaks in Guava's futures, so the compiler has to be able to see them.
     implementation("com.google.guava:guava:31.1-android")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
     // Text search inside PDF files (reads the text of each page; the pages themselves are still drawn by the system's PdfRenderer).
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
     // Installs the startup profile that comes with the Compose libraries, so the release build starts and scrolls faster.
