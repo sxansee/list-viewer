@@ -3,16 +3,20 @@ name: Build APK
 # Every push builds the app and keeps the APK for 30 days (Actions, open the run, section Artifacts).
 # A release is made from a version tag, and every release is a separate entry under Releases:
 #
-#     git tag v2.4.0
-#     git push origin v2.4.0
+#     git tag v2.5.0
+#     git push origin v2.5.0
 #
-# A tag with a suffix (v2.4.0-beta.1) makes a pre-release: it is shown as such and never becomes "Latest", so it is the way to
+# A tag with a suffix (v2.5.0-beta.1) makes a pre-release: it is shown as such and never becomes "Latest", so it is the way to
 # try a new version on a phone first. The release notes are taken from the section of the same version in CHANGELOG.md.
 #
 # The APK is the optimised (release) build. If the optimiser ever fails, the plain debug build is made instead and the run
 # shows a warning, so that a problem there never leaves the repository without an APK.
 #
-# It can also be started by hand: Actions, Build APK, Run workflow, with the version filled in (for example 2.4.0).
+# The APK is signed with the public key from the repository (app/debug.keystore) unless a key of your own is set up:
+# tools/New-ReleaseKey.ps1 makes one, and the repository secrets KEYSTORE_BASE64 and KEYSTORE_PASSWORD (optionally KEY_ALIAS,
+# KEY_PASSWORD) hand it to this workflow. The run page says which key signed the APK.
+#
+# It can also be started by hand: Actions, Build APK, Run workflow, with the version filled in (for example 2.5.0).
 on:
   push:
     branches: ['**']
@@ -20,7 +24,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release, for example 2.4.0 (leave empty to only build)'
+        description: 'Version to release, for example 2.5.0 (leave empty to only build)'
         required: false
         default: ''
 
@@ -52,10 +56,10 @@ jobs:
             version="${INPUT_VERSION#v}"
           fi
           if [[ "$release" == true ]] && ! [[ "$version" =~ ^[0-9]+(\.[0-9]+){1,3}(-[0-9A-Za-z.]+)?$ ]]; then
-            echo "::error::'$version' is not a version number such as 2.4.0 or 2.4.0-beta.1"
+            echo "::error::'$version' is not a version number such as 2.5.0 or 2.5.0-beta.1"
             exit 1
           fi
-          # A version with a suffix (2.4.0-beta.1) is published as a pre-release and never becomes "Latest".
+          # A version with a suffix (2.5.0-beta.1) is published as a pre-release and never becomes "Latest".
           pre=false
           latest=true
           if [[ "$version" == *-* ]]; then
@@ -68,6 +72,55 @@ jobs:
             echo "pre=$pre"
             echo "latest=$latest"
           } >> "$GITHUB_OUTPUT"
+
+      - name: Prepare the signing key
+        id: key
+        shell: bash
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${KEYSTORE_BASE64:-}" ]]; then
+            echo "own=false" >> "$GITHUB_OUTPUT"
+            {
+              echo '### Signing key'
+              echo 'This APK is signed with the **public key from the repository**: no key of your own is set up (see tools/New-ReleaseKey.ps1).'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if [[ -z "${KEYSTORE_PASSWORD:-}" ]]; then
+            echo "::error title=Signing key::The secret KEYSTORE_BASE64 is set, but the secret KEYSTORE_PASSWORD is not."
+            exit 1
+          fi
+          store="$RUNNER_TEMP/list-release.p12"
+          if ! printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$store" 2>/dev/null || [[ ! -s "$store" ]]; then
+            echo "::error title=Signing key::The secret KEYSTORE_BASE64 is not valid base64. Paste the whole text that New-ReleaseKey.ps1 put on the clipboard, with nothing added."
+            exit 1
+          fi
+          alias="${KEY_ALIAS:-list}"
+          if ! listing=$(keytool -list -keystore "$store" -storepass "$KEYSTORE_PASSWORD" -alias "$alias" 2>&1); then
+            echo "::error title=Signing key::The key could not be opened. Check the secrets KEYSTORE_PASSWORD and KEY_ALIAS (the alias is list unless you chose another one)."
+            echo "$listing" | head -n 5
+            exit 1
+          fi
+          fingerprint=$(echo "$listing" | grep -oE '([0-9A-F]{2}:){31}[0-9A-F]{2}' | head -n 1 || true)
+          {
+            echo "LIST_KEYSTORE=$store"
+            printf 'LIST_KEYSTORE_PASSWORD=%s\n' "$KEYSTORE_PASSWORD"
+            echo "LIST_KEY_ALIAS=$alias"
+            printf 'LIST_KEY_PASSWORD=%s\n' "${KEY_PASSWORD:-}"
+          } >> "$GITHUB_ENV"
+          {
+            echo "own=true"
+            echo "fingerprint=$fingerprint"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo '### Signing key'
+            echo "This APK is signed with **your own key**. SHA-256 of its certificate: \`$fingerprint\`"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build
         id: build
@@ -132,6 +185,33 @@ jobs:
           fi
           cp "$apk" List.apk
           ls -l List.apk
+
+      # With a key of your own the APK must carry exactly that key: an APK signed with another one would not install over the
+      # previous version on the phone, so the run stops here instead of publishing it.
+      - name: Check the signature of the APK
+        shell: bash
+        env:
+          OWN: ${{ steps.key.outputs.own }}
+          EXPECTED: ${{ steps.key.outputs.fingerprint }}
+        run: |
+          set -uo pipefail
+          apksigner=$(ls "${ANDROID_HOME:-/usr/local/lib/android/sdk}"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -n 1 || true)
+          if [[ -z "$apksigner" ]]; then
+            echo "apksigner was not found on this runner, the signature is not checked."
+            exit 0
+          fi
+          if ! certs=$("$apksigner" verify --print-certs List.apk 2>&1); then
+            echo "::warning title=Signature::apksigner could not verify List.apk."
+            echo "$certs" | head -n 5
+            exit 0
+          fi
+          digest=$(echo "$certs" | grep -m1 'SHA-256 digest' | sed 's/.*: *//' | tr 'a-f' 'A-F' | sed 's/../&:/g; s/:$//')
+          echo "Signed with the certificate $digest"
+          if [[ "$OWN" == "true" && "$digest" != "$EXPECTED" ]]; then
+            echo "::error title=Signature::The APK is not signed with your key (expected $EXPECTED, found $digest)."
+            exit 1
+          fi
+          echo "SHA-256 of the certificate in List.apk: \`$digest\`" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Keep the APK of this build
         if: steps.ver.outputs.release != 'true'

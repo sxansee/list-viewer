@@ -3,6 +3,62 @@
 The newest version is first. The section of a version is what the release page shows for it (the list of commits that
 GitHub generates comes below it).
 
+## 2.5.0 — 2026-11-22
+
+### Audio that goes on
+- Audio files that are opened from the list play as a queue: when one ends, the next audio file of the list starts. The audio
+  screen has *previous* and *next* buttons and shows the place in the queue ("3 / 12"). The queue is the audio files of the
+  list the file was opened from, in the order the list shows them (up to 200 around the opened one). The name, the menu
+  (share, rename, details…) and the remembered place follow the track that is playing.
+- Music goes on with the screen off and in front of other apps, with a notification and lock-screen controls (play and
+  pause, previous, next, and a seek bar where the phone has one). It is a foreground service of the *media playback* kind.
+  Closing the audio screen with *Back* stops the music, and so does swiping the app away from the recent apps.
+- **Play in the background** is in the options of the audio screen (⋮ menu) and is on by default. Off, the music is played
+  inside the app and ends when the app is left, as in 2.4.0. The choice applies from the next file that is opened.
+- From Android 13 the notification needs the permission for notifications. List asks for it once, the first time audio is
+  played; the music does not depend on the answer.
+- The title of a track is the name of the file (or the name given to it in List). The artist, the album and the cover still
+  come from the tags.
+
+### Moving between files
+- A file that was opened from the list has *previous file* and *next file* buttons in the top bar and shows its place in the
+  list ("3 / 12") in the subtitle, so a folder of documents or pictures can be read through without going back to the list.
+  The order is the one the list showed when the file was opened (with its search, filter and folders). The change of file
+  is a quick cross-fade.
+
+### PDF
+- The words found by the search are marked on the pages: the match that the search bar is at in orange, the others in
+  yellow. A jump to a match scrolls the page so that the match is on the screen, also when it is low on a tall page.
+- Limits: the places of the words are read from the file when a page comes on the screen, so the marks can appear a moment
+  after the page does; text that is turned or runs down the page is not marked, and a PDF made of scanned pictures still
+  has no text to search.
+
+### Reliability and bug reports
+- If the app crashes, the next start offers (once) to copy a crash report: the error with its trace, the version and the
+  device. File paths and addresses are removed from the report. **About** can copy the last report at any time.
+- **About** says which key the installed APK is signed with: the public key of this repository, or another one (then its
+  fingerprint is shown in full). The signature is also part of *Copy details*.
+
+### Your own signing key
+- The release APK can be signed with your own key instead of the public one in the repository: put the key in the
+  repository secrets `KEYSTORE_BASE64` and `KEYSTORE_PASSWORD` (and, if they differ from the defaults, `KEY_ALIAS` and
+  `KEY_PASSWORD`). `tools/New-ReleaseKey.ps1` makes the key on Windows, outside the project folder. The workflow checks
+  the signature of every APK and stops with a clear message if the key cannot be opened or the APK ended up signed with
+  another key. Without the secrets nothing changes: builds are signed with the public key, as before. See *Signing key* in
+  the README, including the one-time cost of switching (Android does not install an update that is signed with a different
+  key, so the first build with a new key needs a reinstall and a restore from a backup).
+
+### Under the hood
+- New libraries: Media3 session and Guava (both Apache-2.0, listed in THIRD_PARTY.txt).
+- New permissions: `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_MEDIA_PLAYBACK` and `POST_NOTIFICATIONS`, only for the playback
+  notification.
+- New unit tests for the audio queue, the navigation between files, the marks in a PDF, crash reports and signatures
+  (130 tests in all).
+
+### Updating
+- Unless you set your own key, the APK is signed with the same key as before, so it installs over 2.4.0 and keeps the list,
+  the names and the folders.
+
 ## 2.4.0 — 2026-11-18
 
 ### Smoother

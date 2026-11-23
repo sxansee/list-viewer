@@ -1,10 +1,5 @@
 package app.fileviewer
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
-import android.content.pm.ApplicationInfo
-import android.os.Build
 import android.text.format.DateUtils
 import android.text.format.Formatter
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -468,28 +463,11 @@ fun EmptyState(onPick: () -> Unit, modifier: Modifier = Modifier) {
     }
 }
 
-/** What the About dialog knows about this installation: the version, its number, and whether it is the slower debug build. */
-private class AboutInfo(val version: String, val code: Long, val debug: Boolean)
-
-@Suppress("DEPRECATION")
-private fun aboutInfo(ctx: Context): AboutInfo {
-    var version = ""
-    var code = 0L
-    try {
-        val pi = ctx.packageManager.getPackageInfo(ctx.packageName, 0)
-        version = pi.versionName ?: ""
-        code = if (Build.VERSION.SDK_INT >= 28) pi.longVersionCode else pi.versionCode.toLong()
-    } catch (e: Exception) {
-        // The dialog is shown without a version.
-    }
-    val debug = (ctx.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
-    return AboutInfo(version, code, debug)
-}
-
 @Composable
 fun AboutDialog(onClose: () -> Unit) {
     val ctx = LocalContext.current
-    val about = remember { aboutInfo(ctx) }
+    val about = remember { appInfo(ctx) }
+    val crash = remember { crashStore(ctx).last() }
     val appName = stringResource(R.string.app_name)
     AlertDialog(
         onDismissRequest = onClose,
@@ -527,31 +505,57 @@ fun AboutDialog(onClose: () -> Unit) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                val kind = keyKindOf(about.signature)
+                if (kind != KeyKind.UNKNOWN) {
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        stringResource(R.string.about_sign, shortFingerprint(about.signature)),
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                    Text(
+                        stringResource(if (kind == KeyKind.REPOSITORY) R.string.about_sign_public else R.string.about_sign_own),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                if (crash != null) {
+                    Spacer(Modifier.height(6.dp))
+                    TextButton(
+                        onClick = { copyText(ctx, appName, crash, R.string.crash_copied) },
+                        contentPadding = PaddingValues(horizontal = 0.dp)
+                    ) { Text(stringResource(R.string.about_crash)) }
+                }
             }
         },
         dismissButton = {
             TextButton(onClick = {
-                val text = aboutDetails(
-                    app = appName,
-                    version = about.version,
-                    code = about.code,
-                    debug = about.debug,
-                    release = Build.VERSION.RELEASE ?: "",
-                    sdk = Build.VERSION.SDK_INT,
-                    maker = Build.MANUFACTURER ?: "",
-                    model = Build.MODEL ?: ""
-                )
-                try {
-                    val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                    cm.setPrimaryClip(ClipData.newPlainText(appName, text))
-                    // Android 13 and newer say "Copied" themselves.
-                    if (Build.VERSION.SDK_INT < 33) toast(ctx, R.string.about_copied)
-                } catch (e: Exception) {
-                    // No clipboard to copy to: nothing to say.
-                }
+                copyText(ctx, appName, appDetails(ctx, about), R.string.about_copied)
             }) { Text(stringResource(R.string.about_copy)) }
         },
         confirmButton = { TextButton(onClick = onClose) { Text(stringResource(R.string.close)) } }
+    )
+}
+
+/**
+ * Shown once, after the app has closed because of an error: the report about it was saved on the device, and can be
+ * copied (to send to the developer). Nothing is sent anywhere by the app itself.
+ */
+@Composable
+fun CrashDialog(report: String, onClose: () -> Unit) {
+    val ctx = LocalContext.current
+    val appName = stringResource(R.string.app_name)
+    AlertDialog(
+        onDismissRequest = onClose,
+        icon = { Ico(R.drawable.ic_warning, null) },
+        title = { Text(stringResource(R.string.crash_title)) },
+        text = { Text(stringResource(R.string.crash_body), style = MaterialTheme.typography.bodyMedium) },
+        dismissButton = { TextButton(onClick = onClose) { Text(stringResource(R.string.close)) } },
+        confirmButton = {
+            TextButton(onClick = {
+                copyText(ctx, appName, report, R.string.crash_copied)
+                onClose()
+            }) { Text(stringResource(R.string.crash_copy)) }
+        }
     )
 }
 

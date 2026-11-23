@@ -30,6 +30,9 @@ import androidx.compose.ui.platform.LocalContext
 class MainActivity : ComponentActivity() {
     private var opened by mutableStateOf<Uri?>(null)
 
+    /** The files of the list the open file came from, in the order they were shown: what the viewer can step through. */
+    private var queue by mutableStateOf<List<String>>(emptyList())
+
     /** True while the open document was handed over by another app ("Open with", "Share"): Back then returns to that app. */
     private var external = false
 
@@ -39,6 +42,7 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState != null) {
             opened = savedInstanceState.getString(KEY_URI)?.let { Uri.parse(it) }
             external = savedInstanceState.getBoolean(KEY_EXTERNAL)
+            queue = savedInstanceState.getStringArrayList(KEY_QUEUE) ?: emptyList()
         } else {
             takeIntent(intent)
             // The list is what is shown first, so the web view that documents need is got ready in the background.
@@ -48,10 +52,13 @@ class MainActivity : ComponentActivity() {
             AppTheme {
                 App(
                     uri = opened,
-                    onOpen = { u ->
+                    queue = queue,
+                    onOpen = { u, files ->
                         external = false
+                        queue = files
                         opened = u
                     },
+                    onNavigate = { u -> opened = u },
                     onClose = {
                         if (external) {
                             finish()
@@ -68,6 +75,8 @@ class MainActivity : ComponentActivity() {
         super.onSaveInstanceState(outState)
         outState.putString(KEY_URI, opened?.toString())
         outState.putBoolean(KEY_EXTERNAL, external)
+        // The system keeps what is saved here in a small message; a very long list is not worth the risk of overflowing it.
+        if (queue.size <= MAX_SAVED_QUEUE) outState.putStringArrayList(KEY_QUEUE, ArrayList(queue))
     }
 
     /**
@@ -137,12 +146,14 @@ class MainActivity : ComponentActivity() {
     private companion object {
         const val KEY_URI = "uri"
         const val KEY_EXTERNAL = "external"
+        const val KEY_QUEUE = "queue"
+        const val MAX_SAVED_QUEUE = 300
     }
 }
 
 /** Two screens, the list of files and the viewer, with a short slide-and-fade between them. */
 @Composable
-fun App(uri: Uri?, onOpen: (Uri) -> Unit, onClose: () -> Unit) {
+fun App(uri: Uri?, queue: List<String>, onOpen: (Uri, List<String>) -> Unit, onNavigate: (Uri) -> Unit, onClose: () -> Unit) {
     val ctx = LocalContext.current
     val store = remember { Recents(ctx) }
     val settings = remember { Settings(ctx) }
@@ -154,6 +165,8 @@ fun App(uri: Uri?, onOpen: (Uri) -> Unit, onClose: () -> Unit) {
         items = store.list()
         folders = store.folders()
     }
+    // The report of a crash is offered once, on the list (not on top of a document that another app has just opened).
+    var crash by remember { mutableStateOf(crashStore(ctx).unseen()) }
 
     LaunchedEffect(uri) {
         if (uri != null) store.add(uri)
@@ -164,7 +177,10 @@ fun App(uri: Uri?, onOpen: (Uri) -> Unit, onClose: () -> Unit) {
         AnimatedContent(
             targetState = uri,
             transitionSpec = {
-                if (targetState != null) {
+                if (initialState != null && targetState != null) {
+                    // From one file straight to the next: a quick cross-fade, so that two documents are not busy sliding at once.
+                    fadeIn(tween(160)) togetherWith fadeOut(tween(120))
+                } else if (targetState != null) {
                     (fadeIn(tween(240)) + slideInHorizontally(tween(280)) { it / 8 }) togetherWith fadeOut(tween(140))
                 } else {
                     fadeIn(tween(240)) togetherWith (fadeOut(tween(160)) + slideOutHorizontally(tween(260)) { it / 8 })
@@ -174,7 +190,7 @@ fun App(uri: Uri?, onOpen: (Uri) -> Unit, onClose: () -> Unit) {
         ) { u ->
             if (u != null) {
                 // The viewer can rename a file, move it to a folder or note where reading stopped, so the list is reloaded on the way back.
-                Viewer(u, { refresh(); onClose() }, store, settings)
+                Viewer(u, queue, onNavigate, { refresh(); onClose() }, store, settings)
             } else {
                 HomeScreen(
                     items = items,
@@ -186,6 +202,13 @@ fun App(uri: Uri?, onOpen: (Uri) -> Unit, onClose: () -> Unit) {
                     onChanged = refresh,
                     onOpen = onOpen
                 )
+            }
+        }
+        val report = crash
+        if (report != null && uri == null) {
+            CrashDialog(report) {
+                crashStore(ctx).markSeen()
+                crash = null
             }
         }
     }

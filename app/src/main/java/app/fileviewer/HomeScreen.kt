@@ -131,7 +131,7 @@ fun HomeScreen(
     settings: Settings,
     onFolder: (String?) -> Unit,
     onChanged: () -> Unit,
-    onOpen: (Uri) -> Unit
+    onOpen: (Uri, List<String>) -> Unit
 ) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -190,7 +190,7 @@ fun HomeScreen(
             keepRead(ctx, u)
             // A file opened from inside a folder is put into that folder.
             if (current != null) store.add(u, current.id)
-            onOpen(u)
+            onOpen(u, emptyList())
         }
     }
 
@@ -303,7 +303,9 @@ fun HomeScreen(
     }
     val open: (RecentItem, Info) -> Unit = { item, info ->
         if (info.available) {
-            onOpen(Uri.parse(item.uri))
+            // The viewer can step to the previous and the next file of what is shown here, in the order it is shown.
+            val queue = sections.flatMap { it.rows }.filter { it.info.available }.map { it.item.uri }
+            onOpen(Uri.parse(item.uri), queue)
         } else {
             scope.launch {
                 snack.currentSnackbarData?.dismiss()

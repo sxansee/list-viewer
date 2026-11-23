@@ -15,7 +15,8 @@ Libraries in app/src/main/assets/lib (used by the in-app document viewer)
                         and LICENSES/7zip-unRarLicense.txt)
 
 Android libraries
-  Jetpack Compose, Activity, Media3 (ExoPlayer), Coil, androidx.webkit, ProfileInstaller, Kotlin coroutines ... Apache-2.0
+  Jetpack Compose, Activity, Media3 (ExoPlayer, UI, session), Coil, androidx.webkit, ProfileInstaller, Kotlin coroutines ... Apache-2.0
+  Guava (the futures that the Media3 session API uses) ... Apache-2.0
   PdfBox-Android (reads the text of PDF pages for the search; a port of Apache PDFBox) ... Apache-2.0
                         https://github.com/TomRoush/PdfBox-Android
 

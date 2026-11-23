@@ -162,10 +162,11 @@ private fun openPdf(ctx: Context, uri: Uri): PdfRenderer? {
 /**
  * A PDF as a column of pages. [start] is the page to open at (where reading stopped), [onPage] is told the page at the
  * top of the screen when scrolling stops and when the document is closed, and [dark] shows the pages with inverted colors.
- * [holder] lets the search bar scroll the document to a page.
+ * [holder] lets the search bar scroll the document to a page, and [search] (null when there is none) gives the places of the
+ * words that are found on the pages, which are marked.
  */
 @Composable
-fun PdfView(uri: Uri, start: Int, dark: Boolean, holder: PdfHolder, onPage: (Int) -> Unit) {
+fun PdfView(uri: Uri, start: Int, dark: Boolean, holder: PdfHolder, search: PdfSearch?, onPage: (Int) -> Unit) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val save = rememberUpdatedState(onPage)
@@ -209,9 +210,11 @@ fun PdfView(uri: Uri, start: Int, dark: Boolean, holder: PdfHolder, onPage: (Int
     // The search bar scrolls the document to a page through the holder.
     DisposableEffect(holder) {
         holder.jump = { page -> scope.launch { list.scrollToItem(page.coerceAtLeast(0)) } }
+        holder.reveal = { page, top -> list.revealOnPage(page.coerceAtLeast(0), top) }
         holder.page = { list.firstVisibleItemIndex }
         onDispose {
             holder.jump = {}
+            holder.reveal = { _, _ -> }
             holder.page = { 0 }
         }
     }
@@ -255,7 +258,7 @@ fun PdfView(uri: Uri, start: Int, dark: Boolean, holder: PdfHolder, onPage: (Int
                         contentPadding = PaddingValues(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(p.pageCount) { i -> PdfPage(p, i, minOf((base * zoom).toInt(), 2000), lock, dark) }
+                        items(p.pageCount) { i -> PdfPage(p, i, minOf((base * zoom).toInt(), 2000), lock, dark, pdfMarksOf(search, i)) }
                     }
                 }
                 AnimatedVisibility(
@@ -282,7 +285,7 @@ fun PdfView(uri: Uri, start: Int, dark: Boolean, holder: PdfHolder, onPage: (Int
 }
 
 @Composable
-fun PdfPage(pdf: PdfRenderer, i: Int, w: Int, lock: Mutex, dark: Boolean) {
+fun PdfPage(pdf: PdfRenderer, i: Int, w: Int, lock: Mutex, dark: Boolean, marks: PageMarks) {
     var bmp by remember(i) { mutableStateOf<Bitmap?>(null) }
     LaunchedEffect(i, w) {
         val r = try {
@@ -303,7 +306,7 @@ fun PdfPage(pdf: PdfRenderer, i: Int, w: Int, lock: Mutex, dark: Boolean) {
     }
     val b = bmp
     val page = Modifier.fillMaxWidth().shadow(2.dp, RoundedCornerShape(3.dp))
-    if (b != null) Image(b.asImageBitmap(), null, page, contentScale = ContentScale.FillWidth, colorFilter = if (dark) DARK_PAGE else null)
+    if (b != null) Image(b.asImageBitmap(), null, page.pdfMarks(marks), contentScale = ContentScale.FillWidth, colorFilter = if (dark) DARK_PAGE else null)
     else Box(page.height(420.dp).background(if (dark) Color.Black else Color.White))
 }
 

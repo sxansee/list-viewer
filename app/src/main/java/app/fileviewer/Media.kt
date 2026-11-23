@@ -1,8 +1,14 @@
 package app.fileviewer
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -35,6 +41,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -78,17 +85,38 @@ import kotlinx.coroutines.withContext
 private fun restingPlace(p: Player): Long = restingPlace(p.currentPosition, p.duration)
 
 /**
- * Audio and video. Playback starts at [start] (milliseconds, where it stopped last time); [onPos] is told the moment
- * every few seconds while playing and when the player is closed.
+ * Audio and video. Playback starts at [start] (milliseconds, where it stopped last time); [onPos] is told where a file
+ * was left (its address and the moment) every few seconds while playing and when it is closed.
  *
  * Video gets the player with its own controls. Audio gets a screen of its own: the cover, the title, a seek bar and the
- * buttons ([name] stands in for a title the file does not carry). A file that is called video but has only sound is shown
- * as audio once the player knows that, and a file that cannot be played gets an explanation and a way out ([mime] is for
- * handing it to another app).
+ * buttons ([name] stands in for a title the file does not carry). The audio files of the list the file was opened from
+ * ([playlist]) are played one after another, with buttons for the previous and the next; [onTrack] is told which one is
+ * playing. A file that is called video but has only sound is shown as audio once the player knows that, and a file that
+ * cannot be played gets an explanation and a way out ([mime] is for handing it to another app).
  */
+@Composable
+fun MediaView(
+    uri: Uri,
+    video: Boolean,
+    start: Long,
+    name: String,
+    mime: String,
+    playlist: Playlist,
+    settings: Settings,
+    onPos: (String, Long) -> Unit,
+    onTrack: (String) -> Unit
+) {
+    if (video) {
+        VideoView(uri, start, name, mime) { onPos(uri.toString(), it) }
+    } else {
+        AudioView(uri, name, mime, start, playlist, settings, onPos, onTrack)
+    }
+}
+
+/** A video file: the player of the screen itself, with the picture, or with the audio screen when the file has no picture. */
 @OptIn(UnstableApi::class)
 @Composable
-fun MediaView(uri: Uri, video: Boolean, start: Long, name: String, mime: String, onPos: (Long) -> Unit) {
+private fun VideoView(uri: Uri, start: Long, name: String, mime: String, onPos: (Long) -> Unit) {
     val ctx = LocalContext.current
     val save = rememberUpdatedState(onPos)
     val player = remember(uri) {
@@ -97,7 +125,7 @@ fun MediaView(uri: Uri, video: Boolean, start: Long, name: String, mime: String,
             .setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(C.USAGE_MEDIA)
-                    .setContentType(if (video) C.AUDIO_CONTENT_TYPE_MOVIE else C.AUDIO_CONTENT_TYPE_MUSIC)
+                    .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
                     .build(),
                 true
             )
@@ -113,7 +141,7 @@ fun MediaView(uri: Uri, video: Boolean, start: Long, name: String, mime: String,
     }
     var failed by remember(player) { mutableStateOf(false) }
     // A video file is shown with a picture until the player says that there is none to show.
-    var picture by remember(player) { mutableStateOf(video) }
+    var picture by remember(player) { mutableStateOf(true) }
     DisposableEffect(player) {
         val listener = object : Player.Listener {
             override fun onPlayerError(error: PlaybackException) {
@@ -121,7 +149,7 @@ fun MediaView(uri: Uri, video: Boolean, start: Long, name: String, mime: String,
             }
 
             override fun onTracksChanged(tracks: Tracks) {
-                if (video && !tracks.isEmpty()) picture = tracks.isTypeSelected(C.TRACK_TYPE_VIDEO)
+                if (!tracks.isEmpty()) picture = tracks.isTypeSelected(C.TRACK_TYPE_VIDEO)
             }
         }
         player.addListener(listener)
@@ -140,17 +168,89 @@ fun MediaView(uri: Uri, video: Boolean, start: Long, name: String, mime: String,
         }
     }
     when {
-        failed -> MessageState(
-            iconRes = R.drawable.ic_warning,
-            title = stringResource(R.string.media_error_title),
-            body = stringResource(R.string.media_error_body)
-        ) {
-            OutlinedButton(onClick = { openExternal(ctx, uri, mime) }) {
-                Text(stringResource(R.string.action_open_external))
-            }
-        }
-        video && picture -> VideoSurface(player)
+        failed -> CannotPlay(ctx, uri, mime)
+        picture -> VideoSurface(player)
         else -> AudioPanel(player, name.substringBeforeLast('.', name))
+    }
+}
+
+/**
+ * An audio file with the queue it belongs to. The music is played by the service when that is switched on (so that it
+ * goes on with the screen off), else by a player of the app; closing the screen ends the playback, unless the system
+ * itself took the screen away.
+ */
+@Composable
+private fun AudioView(
+    uri: Uri,
+    name: String,
+    mime: String,
+    start: Long,
+    playlist: Playlist,
+    settings: Settings,
+    onPos: (String, Long) -> Unit,
+    onTrack: (String) -> Unit
+) {
+    val ctx = LocalContext.current
+    val activity = remember(ctx) { ctx.findActivity() }
+    val savePlace = rememberUpdatedState(onPos)
+    val trackChanged = rememberUpdatedState(onTrack)
+    // The service or the app's own player is chosen once, when the file is opened.
+    val background = remember(uri) { settings.backgroundAudio }
+    val session = remember(uri) {
+        AudioSession(ctx, playlist, start, background, { u, place -> savePlace.value(u, place) }, { t -> trackChanged.value(t) })
+    }
+    AskForNotifications(background, settings)
+    DisposableEffect(session) {
+        session.open()
+        onDispose {
+            // When the system takes the screen away by itself the music goes on in the service; when the person closes it, it ends.
+            session.close(activity != null && activity.isDestroyed && !activity.isFinishing)
+        }
+    }
+    LaunchedEffect(session) {
+        while (true) {
+            delay(5000)
+            session.tick()
+        }
+    }
+    val player = session.player
+    when {
+        session.failed -> CannotPlay(ctx, uri, mime)
+        // The service is starting: a blink on the screen's own background.
+        player == null -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
+        else -> AudioPanel(player, name.substringBeforeLast('.', name))
+    }
+}
+
+/**
+ * From Android 13 the notification with the controls needs the person's permission. It is asked once, the first time
+ * audio is played with the controls switched on; playback does not wait for the answer and does not depend on it.
+ */
+@Composable
+private fun AskForNotifications(wanted: Boolean, settings: Settings) {
+    val ctx = LocalContext.current
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { _: Boolean -> }
+    LaunchedEffect(wanted) {
+        if (wanted && Build.VERSION.SDK_INT >= 33 && !settings.notificationsAsked &&
+            ctx.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            settings.markNotificationsAsked()
+            launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+}
+
+/** The explanation for a file that cannot be played, with a way to hand it to another app. */
+@Composable
+private fun CannotPlay(ctx: Context, uri: Uri, mime: String) {
+    MessageState(
+        iconRes = R.drawable.ic_warning,
+        title = stringResource(R.string.media_error_title),
+        body = stringResource(R.string.media_error_body)
+    ) {
+        OutlinedButton(onClick = { openExternal(ctx, uri, mime) }) {
+            Text(stringResource(R.string.action_open_external))
+        }
     }
 }
 
@@ -185,6 +285,12 @@ private class PlayerUi(private val p: Player) {
     var album by mutableStateOf<String?>(null)
     var art by mutableStateOf<ByteArray?>(null)
 
+    /** The place of the piece in the queue counted from 1, how many pieces the queue has, and whether there are neighbours. */
+    var index by mutableIntStateOf(0)
+    var count by mutableIntStateOf(0)
+    var hasPrevious by mutableStateOf(false)
+    var hasNext by mutableStateOf(false)
+
     fun sync() {
         val state = p.playbackState
         showPlay = !p.playWhenReady || state == Player.STATE_IDLE || state == Player.STATE_ENDED
@@ -198,6 +304,10 @@ private class PlayerUi(private val p: Player) {
         artist = clean(m.artist) ?: clean(m.albumArtist)
         album = clean(m.albumTitle)
         art = m.artworkData
+        count = p.mediaItemCount
+        index = if (count > 0) p.currentMediaItemIndex + 1 else 0
+        hasPrevious = p.hasPreviousMediaItem()
+        hasNext = p.hasNextMediaItem()
     }
 
     private fun clean(c: CharSequence?): String? = c?.toString()?.trim()?.takeIf { it.isNotEmpty() }
@@ -286,6 +396,7 @@ private fun AudioPanel(p: Player, fallbackTitle: String) {
                         Spacer(Modifier.height(12.dp))
                         AudioSeek(ui, p)
                         AudioButtons(ui, p)
+                        AudioQueue(ui, p)
                     }
                 }
             } else {
@@ -296,6 +407,7 @@ private fun AudioPanel(p: Player, fallbackTitle: String) {
                 AudioSeek(ui, p)
                 Spacer(Modifier.height(8.dp))
                 AudioButtons(ui, p)
+                AudioQueue(ui, p)
             }
         }
     }
@@ -421,6 +533,42 @@ private fun AudioButtons(ui: PlayerUi, p: Player) {
             ui.sync()
         }
         Box(Modifier.weight(1f))
+    }
+}
+
+/** The previous and the next piece of the queue with the place of this one between them. Nothing for a single file. */
+@Composable
+private fun AudioQueue(ui: PlayerUi, p: Player) {
+    if (ui.count < 2) return
+    Row(
+        Modifier.fillMaxWidth().padding(top = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
+    ) {
+        IconButton(
+            onClick = {
+                p.seekToPreviousMediaItem()
+                ui.sync()
+            },
+            enabled = ui.hasPrevious
+        ) {
+            Ico(R.drawable.ic_skip_previous, stringResource(R.string.cd_prev_track))
+        }
+        Text(
+            ui.index.toString() + " / " + ui.count,
+            modifier = Modifier.padding(horizontal = 16.dp),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        IconButton(
+            onClick = {
+                p.seekToNextMediaItem()
+                ui.sync()
+            },
+            enabled = ui.hasNext
+        ) {
+            Ico(R.drawable.ic_skip_next, stringResource(R.string.cd_next_track))
+        }
     }
 }
 

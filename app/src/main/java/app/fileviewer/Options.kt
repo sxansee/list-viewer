@@ -32,15 +32,19 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 
+/** The name of the options of the open file: those of reading for a document, those of playback for audio. */
+fun optionsTitle(audio: Boolean): Int = if (audio) R.string.options_audio_title else R.string.options_title
+
 /**
- * The reading options: the size of text and the dark pages of a PDF. [showText] and [showPdf] choose which of the two
- * are offered, depending on the open document. Changes apply at once and are kept.
+ * The reading options: the size of text, the dark pages of a PDF and the playback of audio in the background.
+ * [showText], [showPdf] and [showAudio] choose which of them are offered, depending on the open file. Changes apply at
+ * once and are kept.
  */
 @Composable
-fun ReadingOptionsDialog(settings: Settings, showText: Boolean, showPdf: Boolean, onDismiss: () -> Unit) {
+fun ReadingOptionsDialog(settings: Settings, showText: Boolean, showPdf: Boolean, showAudio: Boolean, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.options_title)) },
+        title = { Text(stringResource(optionsTitle(showAudio && !showText && !showPdf))) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
                 if (showText) {
@@ -90,6 +94,20 @@ fun ReadingOptionsDialog(settings: Settings, showText: Boolean, showPdf: Boolean
                         }
                         Spacer(Modifier.width(12.dp))
                         Switch(checked = settings.darkPdf, onCheckedChange = { settings.updateDarkPdf(it) })
+                    }
+                }
+                if (showAudio) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(stringResource(R.string.options_background_audio), style = MaterialTheme.typography.titleSmall)
+                            Text(
+                                stringResource(R.string.options_background_audio_hint),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Switch(checked = settings.backgroundAudio, onCheckedChange = { settings.updateBackgroundAudio(it) })
                     }
                 }
             }

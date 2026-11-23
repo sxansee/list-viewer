@@ -16,6 +16,12 @@ android {
         versionCode = 100 + run
         versionName = System.getenv("APP_VERSION")?.takeIf { it.isNotBlank() } ?: "dev-$run"
     }
+    // The key that signs the APK. By default it is the public key stored in the repository (app/debug.keystore), the same for the
+    // debug and the release build, so every APK installs over the previous one and keeps the list. A key of your own is used
+    // instead when the build is given one: LIST_KEYSTORE (the path of the keystore file) with LIST_KEYSTORE_PASSWORD, and
+    // optionally LIST_KEY_ALIAS (default "list") and LIST_KEY_PASSWORD (default: the password of the keystore). The GitHub
+    // workflow fills these from the repository secrets; see tools/New-ReleaseKey.ps1 and the README.
+    val ownKeystore = System.getenv("LIST_KEYSTORE")?.takeIf { it.isNotBlank() }
     signingConfigs {
         getByName("debug") {
             storeFile = file("debug.keystore")
@@ -23,16 +29,29 @@ android {
             keyAlias = "androiddebugkey"
             keyPassword = "android"
         }
+        if (ownKeystore != null) {
+            create("own") {
+                storeFile = file(ownKeystore)
+                val password = System.getenv("LIST_KEYSTORE_PASSWORD") ?: ""
+                storePassword = password
+                keyAlias = System.getenv("LIST_KEY_ALIAS")?.takeIf { it.isNotBlank() } ?: "list"
+                keyPassword = System.getenv("LIST_KEY_PASSWORD")?.takeIf { it.isNotBlank() } ?: password
+            }
+        }
     }
+    val signing = signingConfigs.getByName(if (ownKeystore != null) "own" else "debug")
     buildTypes {
+        debug {
+            // The plain build that the workflow falls back to must be signed with the same key as the optimised one.
+            signingConfig = signing
+        }
         release {
             // The optimised build. R8 removes the code that is never used, optimises the rest and shrinks the resources, and the
             // build is no longer "debuggable": this is what makes Compose, scrolling and opening files run smoothly on a phone.
-            // It is signed with the same key as the debug build, so every APK installs over the previous one and keeps the list.
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signing
         }
     }
     // Lint runs as its own job in CI and only reports; a finding never stops the build (and release builds are not checked twice).
@@ -63,6 +82,10 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("androidx.media3:media3-exoplayer:1.4.1")
     implementation("androidx.media3:media3-ui:1.4.1")
+    // The playback service: the media session that keeps music going with the screen off and gives it the notification and lock-screen controls.
+    implementation("androidx.media3:media3-session:1.4.1")
+    // The session's API speaks in Guava's futures, so the compiler has to be able to see them.
+    implementation("com.google.guava:guava:31.1-android")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     // Text search inside PDF files (reads the text of each page; the pages themselves are still drawn by the system's PdfRenderer).
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")

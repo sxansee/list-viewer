@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -27,6 +28,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -37,15 +39,18 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * A single open file: top bar with the name, the actions menu and the content for the file type.
+ * [queue] is the list of files the file was opened from (empty when it came from another app): the top bar then has
+ * buttons to step to the previous and the next one, through [onNavigate].
  * [store] holds the name and the folder the person gave the file inside List, and the place where reading stopped;
  * the menu can change the first two, the content reports the third. [settings] has the reading options.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Viewer(uri: Uri, back: () -> Unit, store: Recents, settings: Settings) {
+fun Viewer(uri: Uri, queue: List<String>, onNavigate: (Uri) -> Unit, back: () -> Unit, store: Recents, settings: Settings) {
     val ctx = LocalContext.current
+    val opened = uri.toString()
     // A file opened from the list was just read by the list; asking the provider once more would only hold up the first frame.
-    val info = remember(uri) { cachedInfo(uri.toString())?.takeIf { it.available } ?: infoOf(ctx, uri) }
+    val info = remember(uri) { cachedInfo(opened)?.takeIf { it.available } ?: infoOf(ctx, uri) }
     val holder = remember(uri) { WebHolder() }
     val pdfHolder = remember(uri) { PdfHolder() }
     val net = remember(uri) { AtomicBoolean(false) }
@@ -57,24 +62,49 @@ fun Viewer(uri: Uri, back: () -> Unit, store: Recents, settings: Settings) {
     var finding by remember { mutableStateOf(false) }
     var found by remember { mutableStateOf("") }
     var options by remember { mutableStateOf(false) }
-    val key = uri.toString()
-    var alias by remember(uri) { mutableStateOf(store.aliasOf(key)) }
+    // Audio is played together with the rest of its queue: the player moves on by itself and the screen follows it, so the
+    // name, the menu and the place that is remembered belong to the piece that is playing, not to the file opened first.
+    // [playing] survives the screen being taken away by the system, so the screen comes back to the piece that was playing.
+    val audio = info.available && info.route == Route.MEDIA && !info.isVideo()
+    var playing by rememberSaveable { mutableStateOf(opened) }
+    val key = remember(audio, playing, opened, queue) {
+        if (audio && (playing == opened || queue.contains(playing))) playing else opened
+    }
+    val current = remember(key) { if (key == opened) uri else Uri.parse(key) }
+    val currentInfo = remember(key, info) {
+        if (key == opened) info else cachedInfo(key)?.takeIf { it.available } ?: infoOf(ctx, current)
+    }
+    var alias by remember(key) { mutableStateOf(store.aliasOf(key)) }
     // Where reading stopped last time (a page, a moment or a place in the text); it is read once, when the file opens.
+    // For audio it is the place in the piece the queue starts with: the one opened, or the one that was playing.
     val start = remember(uri) { store.posOf(key) }
-    val savePos: (Long) -> Unit = { store.setPos(key, it) }
+    val savePos: (Long) -> Unit = { store.setPos(opened, it) }
     val saveCopy = rememberCopySaver()
-    val shown = displayName(info, alias)
+    val shown = displayName(currentInfo, alias)
     val webLike = info.route == Route.WEB || info.route == Route.HTML
     val isPdf = info.route == Route.PDF
-    val mime = info.mime ?: mimeOf(info.ext)
-    val hasOptions = info.available && (webLike || isPdf)
+    val mime = currentInfo.mime ?: mimeOf(currentInfo.ext)
+    val hasOptions = info.available && (webLike || isPdf || audio)
+    // The audio files of the list this one was opened from, to be played one after another.
+    val playlist = remember(uri) {
+        if (audio) {
+            val aliases = store.list().filter { it.alias != null }.associate { it.uri to it.alias }
+            playlistOf(queue = queue, current = key, isAudio = ::isAudioFile, titleOf = { trackTitle(it, aliases[it]) })
+        } else {
+            Playlist(listOf(Track(opened, "")), 0)
+        }
+    }
     // The text of a PDF is read for the search only when the person asks for it; the file is let go when the viewer is left.
     val pdfFind = remember(uri) { PdfSearch(ctx, uri) }
     DisposableEffect(uri) { onDispose { pdfFind.close() } }
 
-    val typeText = stringResource(info.cat.titleRes)
-    val subtitle = remember(info, typeText) {
-        if (info.size >= 0L) typeText + "  ·  " + Formatter.formatShortFileSize(ctx, info.size) else typeText
+    // The files before and after this one in the list it was opened from (a piece of audio has its queue in the player).
+    val near = remember(queue, key, audio) { if (audio) null else neighbours(queue, key) }
+
+    val typeText = stringResource(currentInfo.cat.titleRes)
+    val subtitle = remember(currentInfo, typeText, near) {
+        val base = if (currentInfo.size >= 0L) typeText + "  ·  " + Formatter.formatShortFileSize(ctx, currentInfo.size) else typeText
+        if (near != null) base + "  ·  " + near.position + " / " + near.total else base
     }
 
     // Back closes the search bar first, then steps back through the pages of an HTML file, then leaves the file.
@@ -118,6 +148,22 @@ fun Viewer(uri: Uri, back: () -> Unit, store: Recents, settings: Settings) {
                     }
                 },
                 actions = {
+                    if (near != null) {
+                        IconButton(
+                            onClick = { near.previous?.let { onNavigate(Uri.parse(it)) } },
+                            enabled = near.previous != null,
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Ico(R.drawable.ic_chevron_left, stringResource(R.string.cd_prev_file))
+                        }
+                        IconButton(
+                            onClick = { near.next?.let { onNavigate(Uri.parse(it)) } },
+                            enabled = near.next != null,
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Ico(R.drawable.ic_chevron_right, stringResource(R.string.cd_next_file))
+                        }
+                    }
                     if ((webLike || isPdf) && info.available) {
                         IconButton(onClick = {
                             if (finding) holder.view?.clearMatches()
@@ -132,26 +178,26 @@ fun Viewer(uri: Uri, back: () -> Unit, store: Recents, settings: Settings) {
                             Ico(R.drawable.ic_more_vert, stringResource(R.string.cd_more))
                         }
                         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                            if (info.available) {
+                            if (currentInfo.available) {
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.action_share)) },
                                     leadingIcon = { Ico(R.drawable.ic_share) },
-                                    onClick = { menu = false; shareFile(ctx, uri, mime) }
+                                    onClick = { menu = false; shareFile(ctx, current, mime) }
                                 )
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.action_open_external)) },
                                     leadingIcon = { Ico(R.drawable.ic_external) },
-                                    onClick = { menu = false; openExternal(ctx, uri, mime) }
+                                    onClick = { menu = false; openExternal(ctx, current, mime) }
                                 )
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.action_save_copy)) },
                                     leadingIcon = { Ico(R.drawable.ic_download) },
-                                    onClick = { menu = false; saveCopy(uri, shown) }
+                                    onClick = { menu = false; saveCopy(current, shown) }
                                 )
                             }
                             if (hasOptions) {
                                 DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.options_title)) },
+                                    text = { Text(stringResource(optionsTitle(audio))) },
                                     leadingIcon = { Ico(R.drawable.ic_text_size) },
                                     onClick = { menu = false; options = true }
                                 )
@@ -220,9 +266,9 @@ fun Viewer(uri: Uri, back: () -> Unit, store: Recents, settings: Settings) {
                     }
                 } else {
                     when (info.route) {
-                        Route.PDF -> PdfView(uri, start.toInt(), settings.darkPdf && isSystemInDarkTheme(), pdfHolder) { savePos(it.toLong()) }
+                        Route.PDF -> PdfView(uri, start.toInt(), settings.darkPdf && isSystemInDarkTheme(), pdfHolder, pdfFind) { savePos(it.toLong()) }
                         Route.IMAGE -> ZoomImage(uri, mime)
-                        Route.MEDIA -> MediaView(uri, info.isVideo(), start, shown, mime, savePos)
+                        Route.MEDIA -> MediaView(uri, info.isVideo(), start, shown, mime, playlist, settings, { u, place -> store.setPos(u, place) }) { playing = it }
                         Route.HTML, Route.WEB -> WebDoc(uri, info, net, holder, start, settings.textScale, savePos) { found = it }
                     }
                 }
@@ -232,7 +278,7 @@ fun Viewer(uri: Uri, back: () -> Unit, store: Recents, settings: Settings) {
 
     if (renaming) {
         RenameDialog(
-            info = info,
+            info = currentInfo,
             alias = alias,
             onSave = { a ->
                 store.setAlias(key, a)
@@ -258,12 +304,13 @@ fun Viewer(uri: Uri, back: () -> Unit, store: Recents, settings: Settings) {
             onDismiss = { moving = false }
         )
     }
-    if (details) DetailsDialog(info, shown) { details = false }
+    if (details) DetailsDialog(currentInfo, shown) { details = false }
     if (options) {
         ReadingOptionsDialog(
             settings = settings,
             showText = webLike,
             showPdf = info.route == Route.PDF,
+            showAudio = audio,
             onDismiss = { options = false }
         )
     }
@@ -300,4 +347,17 @@ private fun DetailRow(label: String, value: String) {
         Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
         Text(value, style = MaterialTheme.typography.bodyLarge)
     }
+}
+
+/** True for a file that the list has read and that is audio: it can go into the queue of the audio screen. */
+private fun isAudioFile(uri: String): Boolean {
+    val i = cachedInfo(uri) ?: return false
+    return i.available && i.route == Route.MEDIA && !i.isVideo()
+}
+
+/** What a piece of the queue is called until its own tags say otherwise: the name chosen in List, else the name of the file, without the extension. */
+private fun trackTitle(uri: String, alias: String?): String {
+    val i = cachedInfo(uri)
+    val name = if (i != null) displayName(i, alias) else uri.substringAfterLast('/')
+    return name.substringBeforeLast('.', name)
 }

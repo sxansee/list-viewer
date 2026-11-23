@@ -38,6 +38,14 @@
     <string name="about_debug">Debug build: slower than the release version.</string>
     <string name="about_copy">Copy details</string>
     <string name="about_copied">Details copied</string>
+    <string name="about_crash">Copy the report of the last crash</string>
+    <string name="about_sign">Signature %1$s</string>
+    <string name="about_sign_public">The public key from the repository: anyone can make an update that this app would accept.</string>
+    <string name="about_sign_own">A key of its own, not the public one from the repository.</string>
+    <string name="crash_title">List closed unexpectedly</string>
+    <string name="crash_body">A report about it was saved on this device only; nothing was sent anywhere. Copy it and send it to the developer if you want the fault fixed. The report may mention the name of a file, so look it over first.</string>
+    <string name="crash_copy">Copy report</string>
+    <string name="crash_copied">Report copied</string>
 
     <!-- File actions -->
     <string name="action_share">Share</string>
@@ -97,6 +105,10 @@
     <string name="action_select">Select</string>
     <string name="action_select_all">Select all</string>
     <string name="cd_cancel_selection">Cancel selection</string>
+    <string name="cd_prev_file">Previous file</string>
+    <string name="cd_next_file">Next file</string>
+    <string name="cd_prev_track">Previous track</string>
+    <string name="cd_next_track">Next track</string>
     <string name="selected_count">%1$d selected</string>
     <string name="removed_many">Removed from the list: %1$d</string>
 
@@ -120,6 +132,9 @@
     <string name="options_text_hint">For text documents, books and web pages.</string>
     <string name="options_dark_pdf">Dark PDF pages</string>
     <string name="options_dark_pdf_hint">Inverts the page colors while the dark theme is on.</string>
+    <string name="options_audio_title">Playback options</string>
+    <string name="options_background_audio">Play in the background</string>
+    <string name="options_background_audio_hint">Music goes on with the screen off and in other apps, with its controls in the notification and on the lock screen. Applies from the next file you open.</string>
     <string name="options_reset">Reset</string>
 
     <!-- Saving a copy, receiving files from other apps -->

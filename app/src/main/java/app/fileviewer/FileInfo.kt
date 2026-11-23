@@ -1,9 +1,12 @@
 package app.fileviewer
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
 import android.widget.Toast
@@ -124,6 +127,17 @@ fun infoOf(c: Context, u: Uri, lastName: String? = null, lastSize: Long = -1L): 
 }
 
 fun toast(c: Context, res: Int) { Toast.makeText(c, res, Toast.LENGTH_LONG).show() }
+
+/** Puts [text] on the clipboard. Android 13 and newer say "Copied" themselves; older versions get the toast [done]. */
+fun copyText(c: Context, label: String, text: String, done: Int) {
+    try {
+        val cm = c.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        cm.setPrimaryClip(ClipData.newPlainText(label, text))
+        if (Build.VERSION.SDK_INT < 33) toast(c, done)
+    } catch (e: Exception) {
+        // No clipboard to copy to: nothing to say.
+    }
+}
 
 fun openExternal(c: Context, u: Uri, mime: String) {
     val i = Intent(Intent.ACTION_VIEW).setDataAndType(u, mime).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)

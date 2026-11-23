@@ -36,6 +36,14 @@
     <string name="about_debug">Отладочная сборка: работает медленнее релизной версии.</string>
     <string name="about_copy">Скопировать сведения</string>
     <string name="about_copied">Сведения скопированы</string>
+    <string name="about_crash">Скопировать отчёт о последнем сбое</string>
+    <string name="about_sign">Подпись %1$s</string>
+    <string name="about_sign_public">Общедоступный ключ из репозитория: обновление с такой подписью может сделать кто угодно.</string>
+    <string name="about_sign_own">Собственный ключ, а не общедоступный из репозитория.</string>
+    <string name="crash_title">List неожиданно закрылся</string>
+    <string name="crash_body">Отчёт об этом сохранён только на этом устройстве, никуда не отправлялся. Скопируйте его и отправьте разработчику, если хотите, чтобы неполадку исправили. В отчёте может встретиться имя файла, поэтому сначала просмотрите текст.</string>
+    <string name="crash_copy">Скопировать отчёт</string>
+    <string name="crash_copied">Отчёт скопирован</string>
 
     <!-- Действия с файлом -->
     <string name="action_share">Поделиться</string>
@@ -97,6 +105,10 @@
     <string name="action_select">Выбрать</string>
     <string name="action_select_all">Выбрать все</string>
     <string name="cd_cancel_selection">Отменить выбор</string>
+    <string name="cd_prev_file">Предыдущий файл</string>
+    <string name="cd_next_file">Следующий файл</string>
+    <string name="cd_prev_track">Предыдущий трек</string>
+    <string name="cd_next_track">Следующий трек</string>
     <string name="selected_count">Выбрано: %1$d</string>
     <string name="removed_many">Убрано из списка: %1$d</string>
 
@@ -120,6 +132,9 @@
     <string name="options_text_hint">Для текстовых документов, книг и веб-страниц.</string>
     <string name="options_dark_pdf">Тёмные страницы PDF</string>
     <string name="options_dark_pdf_hint">Инвертирует цвета страниц, пока включена тёмная тема.</string>
+    <string name="options_audio_title">Настройки воспроизведения</string>
+    <string name="options_background_audio">Играть в фоне</string>
+    <string name="options_background_audio_hint">Музыка продолжает играть при выключенном экране и в других приложениях, управление — в шторке уведомлений и на экране блокировки. Действует со следующего открытого файла.</string>
     <string name="options_reset">Сбросить</string>
 
     <!-- Копия файла и приём файлов из других приложений -->
