@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Подсветка синтаксиса Glass для AvalonEdit (светлая тема; тёмная — Glass.Dark.xshd, правила те же, меняются только цвета:
+     это проверяет тест). Ключевые слова — ровно таблица Lexer.cpp (keywordTable). Комментарии: // до конца строки
+     и /* ... */ на несколько строк. -->
+<SyntaxDefinition name="Glass Dark" extensions=".glass" xmlns="http://icsharpcode.net/sharpdevelop/syntaxdefinition/2008">
+
+    <Color name="Comment" foreground="#7F8CA0" fontStyle="italic" />
+    <Color name="String" foreground="#7EE0A8" />
+    <Color name="Number" foreground="#F2A065" />
+    <Color name="Declaration" foreground="#7AA7FF" fontWeight="bold" />
+    <Color name="Keyword" foreground="#7AA7FF" />
+    <Color name="Modifier" foreground="#B79CFF" />
+    <Color name="Type" foreground="#5CD3E8" fontWeight="bold" />
+    <Color name="Literal" foreground="#C792EA" fontWeight="bold" />
+    <Color name="SelfRef" foreground="#F5B369" fontWeight="bold" />
+    <Color name="Introspection" foreground="#F08AF5" fontWeight="bold" />
+    <Color name="Builtin" foreground="#4FD1C5" />
+
+    <RuleSet>
+        <Span color="Comment">
+            <Begin>//</Begin>
+        </Span>
+        <Span color="Comment" multiline="true">
+            <Begin>/\*</Begin>
+            <End>\*/</End>
+        </Span>
+
+        <Span color="String">
+            <Begin>"</Begin>
+            <End>"</End>
+            <RuleSet>
+                <!-- экранированные символы: \n, \", \\ -->
+                <Span begin="\\" end="." />
+            </RuleSet>
+        </Span>
+
+        <!-- Фирменная фича языка: ~layout, ~vtable, ~address, ~heap, ~gc -->
+        <Rule color="Introspection">~\s*(layout|vtable|address|heap|gc)\b</Rule>
+
+        <Keywords color="Declaration">
+            <Word>mold</Word>
+            <Word>facet</Word>
+            <Word>fn</Word>
+            <Word>let</Word>
+        </Keywords>
+
+        <Keywords color="Modifier">
+            <Word>static</Word>
+            <Word>virtual</Word>
+            <Word>override</Word>
+            <Word>public</Word>
+            <Word>private</Word>
+            <Word>protected</Word>
+        </Keywords>
+
+        <Keywords color="Keyword">
+            <Word>if</Word>
+            <Word>else</Word>
+            <Word>while</Word>
+            <Word>for</Word>
+            <Word>in</Word>
+            <Word>return</Word>
+            <Word>break</Word>
+            <Word>continue</Word>
+            <Word>try</Word>
+            <Word>catch</Word>
+            <Word>finally</Word>
+            <Word>throw</Word>
+        </Keywords>
+
+        <Keywords color="Type">
+            <Word>int</Word>
+            <Word>double</Word>
+            <Word>bool</Word>
+            <Word>string</Word>
+        </Keywords>
+
+        <Keywords color="Literal">
+            <Word>true</Word>
+            <Word>false</Word>
+            <Word>null</Word>
+        </Keywords>
+
+        <Keywords color="SelfRef">
+            <Word>this</Word>
+            <Word>super</Word>
+        </Keywords>
+
+        <!-- Встроенные функции и константы (список сверяется тестом с bytecode/Builtins.h) -->
+        <Keywords color="Builtin">
+            <Word>print</Word>
+            <Word>len</Word>
+            <Word>str</Word>
+            <Word>range</Word>
+            <Word>abs</Word>
+            <Word>min</Word>
+            <Word>max</Word>
+            <Word>sum</Word>
+            <Word>sqrt</Word>
+            <Word>pow</Word>
+            <Word>floor</Word>
+            <Word>ceil</Word>
+            <Word>round</Word>
+            <Word>hex</Word>
+            <Word>PI</Word>
+            <Word>E</Word>
+        </Keywords>
+
+        <Rule color="Number">\b\d+(\.\d+)?([eE][+-]?\d+)?\b</Rule>
+    </RuleSet>
+
+</SyntaxDefinition>
