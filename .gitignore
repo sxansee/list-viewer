@@ -1,11 +1,13 @@
-# Сборка C++ (CMake) и .NET
 build/
-out/
-bin/
-obj/
-.vs/
-*.user
-
-# Выход релизного workflow и локальной упаковки
-dist/
-release-notes.md
+.gradle/
+local.properties
+.idea/
+# Keys that sign the app are secrets and never belong here (the public key app/debug.keystore is tracked on purpose).
+*.p12
+*.pfx
+*.jks
+*.keystore
+!app/debug.keystore
+list-release*
+# Copies of the project that tools/Update-List.ps1 makes before it replaces the files.
+.backups/

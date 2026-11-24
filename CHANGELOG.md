@@ -1,99 +1,126 @@
-# Журнал изменений
+# Changelog
 
-Все заметные изменения проекта фиксируются здесь. Формат — [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/),
-версии — [SemVer](https://semver.org/lang/ru/).
+The newest version is first. The section of a version is what the release page shows for it (the list of commits that
+GitHub generates comes below it).
 
-## [1.0.0] — 2026-11-17
+## 2.5.1 — 2026-11-24
 
-Первый публичный релиз Glass — учебного статически типизированного ООП-языка, который показывает то, что другие языки прячут: как объект лежит в памяти, как работает виртуальный вызов и как работает сборщик мусора. В релизе компилятор и виртуальная машина с настоящим сборщиком мусора (C++17), C API и Glass Studio для Windows — с отладчиком, схемой кучи, инспектором объектов и курсом из 24 уроков.
+### Zooming
+- **PDF:** a pinch zooms around the point between the fingers, follows them at every moment and no longer makes the page
+  jump when the fingers are lifted. The pages are no longer laid out again during a zoom: they are enlarged as they are,
+  and drawn again in finer detail once the fingers are lifted. Two fingers also scroll the document, and one finger moves
+  a zoomed page sideways and up or down at the same time. The page can be zoomed up to 3 times.
+- **PDF:** a double tap zooms in on the place that was tapped (a second one zooms back out) with a short animation instead
+  of a jump.
+- **Pictures:** the same pinch around the fingers and the same double tap. A zoomed picture stops at its own edges, not at
+  the edges of the screen, so there is no empty space to drag it into. Pictures are loaded up to 2560 pixels on the longer
+  side (they used to be loaded at the size of the screen), so they stay sharp when enlarged, up to 8 times.
 
-### Язык и компилятор
-- Полный конвейер: лексер с автоматической вставкой `;` (ASI) → парсер всей грамматики (`glass-grammar.md`) →
-  семантический анализатор (наследование `mold`, контракты `facet`, `override`) → проверка типов тел функций →
-  байткод-компилятор → стековая VM с настоящим mark-and-sweep сборщиком мусора.
-- Объекты без `new`, поля (в том числе унаследованные), `this`/`super`, виртуальная диспетчеризация через vtable.
-- Массивы, срезы и отрицательные индексы как в Python, `range`, методы массивов и строк, встроенные функции и константы,
-  преобразования типов.
-- Исключения: `try`/`catch`/`finally`, `throw`, собственные классы исключений.
-- Интроспекция: операторы `~layout`, `~vtable`, `~address`, `~heap`, `~gc`.
-- `print(объект)` выводит `Класс@0x…`; пользовательский `toString()` (виртуальный) работает в `print`, `+`, `+=`, `str()` и `(string)`.
-- `else`, `catch` и `finally` можно писать с новой строки после `}`.
-- Приведение ссылочных типов `(Dog) animal` проверяется во время выполнения; заведомо невозможные приведения — ошибка типов.
-- Строгие правила `virtual`/`override`: `override` допустим только над виртуальным методом, метод без `override` поверх
-  виртуального — ошибка (раньше полиморфизм в этих случаях молча не срабатывал).
-- Проверка возврата: функция или метод с `-> тип` обязаны вернуть значение на каждом пути выполнения — раньше на
-  «пропущенной» ветке молча возвращался `null`.
-- Модификаторы доступа `public`/`private`/`protected` проверяются компилятором для полей, методов и конструкторов
-  (раньше разбирались, но не действовали): `private` — только сам `mold`, `protected` — он и его потомки.
-- Методы своего объекта можно вызывать без `this.`: `hello()` внутри метода означает `this.hello()`; функции,
-  `mold`-ы и встроенные функции с тем же именем имеют приоритет.
-- `static`-поля и `static`-методы теперь работают: `Mold.поле`, `Mold.метод()`, по простому имени внутри `mold`;
-  инициализаторы выполняются один раз до `main`, поля — корни сборщика мусора. Раньше `static let` молча
-  превращался в обычное поле объекта, а `static fn` нельзя было вызвать.
-- Присваивание элементу строки (`s[0] = ...`) — ошибка компиляции вместо падения при выполнении.
-- Сообщения компилятора склоняются по числу: «1 ошибка», «2 ошибки», «5 ошибок».
-- Защита от наполовину пересобранной сборки: части Glass сверяют размеры общих структур и при расхождении
-  просят пересобрать проект целиком (раньше такое состояние давало непредсказуемое поведение).
-- Единый вид адресов: `print(объект)` и `~heap` показывают `Класс@0x…`; новая встроенная функция `hex(n)`
-  печатает число так же (`hex(объект~address)`).
-- Отладчик: вход в функцию, метод и конструктор — отдельная остановка на заголовке (кадр уже на стеке, параметры
-  связаны), выход без `return` — на закрывающей `}`. Точка останова на заголовке теперь срабатывает при входе
-  (раньше — только при выходе, после всей работы функции).
-- Отладчик: Step Into на создании объекта больше не заходит в служебную инициализацию mold'а (раньше казалось,
-  что программа «входит в пустой конструктор» на строке объявления); в инициализаторы полей заходить по-прежнему можно.
-- Отладчик: точка останова на строке с вызовом срабатывает один раз на вызов. Возврат из функции в остаток той же строки
-  (`print(s.area())`, `return n * fact(n - 1)`) больше не считается новым попаданием — раньше программа останавливалась
-  на этой строке второй раз, а в рекурсии ещё и на каждом возврате. Вызов без результата и соседние строки не затронуты.
-- Целые числа — 64 бита со знаком, переполнение «заворачивается» (`9223372036854775807 + 1 == -9223372036854775808`), как в C# и
-  Java. Раньше это было неопределённым поведением C++, а `INT_MIN / -1` на x86 ещё и убивало процесс сигналом.
-- Целый литерал больше `9223372036854775807` и вещественный литерал вне диапазона `double` — ошибка компиляции с понятным
-  сообщением (раньше компилятор падал на неперехваченном исключении).
-- Лексические ошибки объясняются словами: «незакрытая строка», «неизвестный символ «@»», «одиночный '&' не поддерживается»,
-  «незакрытый комментарий» (раньше — безликое «получено ERROR», а незакрытый `/*` молча принимался). Русская буква вне строки
-  — один символ, а не обрубки байтов. Файл с BOM в начале (так сохраняет Блокнот Windows) читается как обычный.
-- Защита от патологического ввода: сотни вложенных скобок, цепочка из тысяч слагаемых или `else if` дают ошибку
-  «слишком глубоко» / «слишком длинное» вместо падения компилятора; сообщений об ошибках разбора показывается не больше ста.
-- `override` не может менять уровень доступа метода предка, а метод, реализующий `facet`, обязан быть `public` (как в C#) —
-  раньше такой код молча проходил, и доступ к одному и тому же методу зависел от типа выражения.
-- Дженерики (`mold Box<T>`, `fn first<T>`): синтаксис разбирается, но не поддерживается — компилятор сразу говорит об этом
-  понятной ошибкой (раньше на первом использовании было загадочное «тип 'int' не совместим с ожидаемым 'T'»).
+### Updating the project
+- `tools/Update-List.ps1` keeps its backup copies in the folder `.backups` inside the project instead of next to it. Git
+  ignores that folder, the update leaves it alone, and only the 5 newest copies are kept (`-Keep` changes the number). Without
+  other instructions the script looks for the project in `D:\my-projects\list`.
 
-### Надёжность
-- Все наборы тестов ядра прошли под AddressSanitizer и UndefinedBehaviorSanitizer (без ошибок памяти, неопределённого
-  поведения и утечек), а `scripts/fuzz.py` — мутационный фаззинг примеров и блоков документации — не находит падений `glassc`.
-  Всё, что при этой проверке нашлось, исправлено (см. «Язык и компилятор»); как повторить — `docs/building.md`.
+## 2.5.0 — 2026-11-22
 
-### Интерфейсы
-- Консоль (REPL) и `glassc [файл.glass]`; на Windows вывод в консоль идёт в UTF-8 (кириллица).
-- C API (`glass_capi`) для встраивания Glass в другие процессы.
-- Glass Studio (WPF): редактор на AvalonEdit, пошаговый отладчик, схема кучи, инспектор объекта, окно «Курс по Glass» (пункт меню и кнопка на панели инструментов; результат проверки сам прокручивается в видимую область, после успеха главная кнопка — «Следующий урок»),
-  вкладка «Журнал», кнопка «Вписать» схему кучи в окно, меню «Правка» и поиск `Ctrl+F`, размер шрифта редактора (`Ctrl`+колесо), недавние файлы и открытие перетаскиванием, `static`-поля в панели переменных и на схеме кучи, карточка элемента кода (правая кнопка мыши над словом или `F1` под курсором: что это за элемент,
-  пример, ссылка на документацию, «Вырезать/Копировать/Вставить», «Точка останова»). Окно поддерживает разный масштаб на разных экранах (Per-Monitor V2 DPI). Сборка проверяется на Windows в CI.
-- Ядро IDE (`Glass.Studio.Core`): логгер с ротацией файлов, интерактивный курс (24 урока с проверкой решений),
-  карточки элементов кода (справочник из 77 записей).
+### Audio that goes on
+- Audio files that are opened from the list play as a queue: when one ends, the next audio file of the list starts. The audio
+  screen has *previous* and *next* buttons and shows the place in the queue ("3 / 12"). The queue is the audio files of the
+  list the file was opened from, in the order the list shows them (up to 200 around the opened one). The name, the menu
+  (share, rename, details…) and the remembered place follow the track that is playing.
+- Music goes on with the screen off and in front of other apps, with a notification and lock-screen controls (play and
+  pause, previous, next, and a seek bar where the phone has one). It is a foreground service of the *media playback* kind.
+  Closing the audio screen with *Back* stops the music, and so does swiping the app away from the recent apps.
+- **Play in the background** is in the options of the audio screen (⋮ menu) and is on by default. Off, the music is played
+  inside the app and ends when the app is left, as in 2.4.0. The choice applies from the next file that is opened.
+- From Android 13 the notification needs the permission for notifications. List asks for it once, the first time audio is
+  played; the music does not depend on the answer.
+- The title of a track is the name of the file (or the name given to it in List). The artist, the album and the cover still
+  come from the tags.
 
-- Glass Studio: светлая и тёмная темы («Вид → Тема», в том числе «как в системе» — следует режиму приложений Windows на лету). Перекрашиваются
-  панели, меню, таблицы, вкладки, полосы прокрутки, схема кучи, редактор кода (свой `.xshd` для подсветки, строка выполнения, поле точек
-  останова, выделение), окно курса и заголовок окна. Цвета лежат только в палитрах `Palette.Light.xaml` и `Palette.Dark.xaml`, стили
-  стандартных элементов тёмной темы — в `Controls.Dark.xaml`; светлый вид не изменился. Тест сверяет наборы цветов, неизменность светлых
-  значений, отсутствие «зашитых» цветов и контраст текста в тёмной теме по WCAG.
-- Значок Glass: исходники `assets/glass-icon.svg` и `assets/glass-icon-small.svg`, `assets/glass.ico` (девять размеров, мелкие кадры
-  упрощены) — значок `GlassStudio.exe` и окон; тест проверяет структуру `.ico`.
-- Редактор: блочные комментарии `/* … */` подсвечиваются (раньше выделялись только `//`), а подсказки по F1 больше не принимают слова
-  внутри такого комментария за код.
+### Moving between files
+- A file that was opened from the list has *previous file* and *next file* buttons in the top bar and shows its place in the
+  list ("3 / 12") in the subtitle, so a folder of documents or pictures can be read through without going back to the list.
+  The order is the one the list showed when the file was opened (with its search, filter and folders). The change of file
+  is a quick cross-fade.
 
-### Документация
-- Папка `docs`: оглавление, восемь страниц по языку с исполняемыми примерами, справочник из 77 записей (генерируется из `LanguageReference`), страницы про Glass Studio, курс, журнал, C API, архитектуру и сборку.
-- Тесты документации: примеры исполняются настоящей VM, справочник совпадает с записями, ссылки живы, каждая страница упоминает записи, которые на неё ссылаются.
-- `README.md` написан заново; его примеры исполняются настоящей VM в тестах, как и примеры на страницах `docs`.
-- `docs/building.md`: раздел «Санитайзеры и фаззинг»; `docs/language/basics.md` и `docs/language/objects.md` описывают переполнение `int` и правила доступа при `override` и реализации `facet`.
-- Шпаргалка для показа `docs/demo.md`: четыре сценария на встроенных примерах (что нажимать и что видно); шаги проверяются тестами `демо: …` на настоящей VM.
-- `glass-grammar.md`: срезы, `range`, `print` с несколькими аргументами, преобразования, методы.
+### PDF
+- The words found by the search are marked on the pages: the match that the search bar is at in orange, the others in
+  yellow. A jump to a match scrolls the page so that the match is on the screen, also when it is low on a tall page.
+- Limits: the places of the words are read from the file when a page comes on the screen, so the marks can appear a moment
+  after the page does; text that is turned or runs down the page is not marked, and a PDF made of scanned pictures still
+  has no text to search.
 
-### Инфраструктура
-- Более 1000 C++-проверок в 11 наборах (сборка без предупреждений с `-Wall -Wextra`) и более 2300 .NET-проверок
-  на живой `glass_capi`; `scripts/test-all.sh` и `scripts/test-all.ps1` прогоняют всё одной командой.
-- `scripts/fuzz.py` — мутационный фаззинг компилятора и VM.
-- `scripts/update-docs.py` обновляет вывод примеров `glass error` в документации по настоящему `glassc`.
-- CI на GitHub Actions (Linux и Windows) и релизный workflow по тегу `v*`.
-- Лицензия MIT, шаблоны issue и pull request, `CONTRIBUTING.md`, `RELEASING.md`.
+### Reliability and bug reports
+- If the app crashes, the next start offers (once) to copy a crash report: the error with its trace, the version and the
+  device. File paths and addresses are removed from the report. **About** can copy the last report at any time.
+- **About** says which key the installed APK is signed with: the public key of this repository, or another one (then its
+  fingerprint is shown in full). The signature is also part of *Copy details*.
+
+### Your own signing key
+- The release APK can be signed with your own key instead of the public one in the repository: put the key in the
+  repository secrets `KEYSTORE_BASE64` and `KEYSTORE_PASSWORD` (and, if they differ from the defaults, `KEY_ALIAS` and
+  `KEY_PASSWORD`). `tools/New-ReleaseKey.ps1` makes the key on Windows, outside the project folder. The workflow checks
+  the signature of every APK and stops with a clear message if the key cannot be opened or the APK ended up signed with
+  another key. Without the secrets nothing changes: builds are signed with the public key, as before. See *Signing key* in
+  the README, including the one-time cost of switching (Android does not install an update that is signed with a different
+  key, so the first build with a new key needs a reinstall and a restore from a backup).
+
+### Under the hood
+- New libraries: Media3 session and Guava (both Apache-2.0, listed in THIRD_PARTY.txt).
+- New permissions: `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_MEDIA_PLAYBACK` and `POST_NOTIFICATIONS`, only for the playback
+  notification.
+- New unit tests for the audio queue, the navigation between files, the marks in a PDF, crash reports and signatures
+  (130 tests in all).
+
+### Updating
+- Unless you set your own key, the APK is signed with the same key as before, so it installs over 2.4.0 and keeps the list,
+  the names and the folders.
+
+## 2.4.0 — 2026-11-18
+
+### Smoother
+- The APK is now the optimised release build (R8 shrinking and the baseline profiles of Compose). Earlier APKs were debug
+  builds, which Android runs noticeably slower, and that was the main reason why scrolling, transitions and opening files
+  did not feel smooth. Android finishes optimising an installed app in the background, so the effect is fullest after the
+  app has been used for a while.
+- A PDF is opened away from the main thread, so a big file no longer freezes the screen while it opens.
+- Pinch and double-tap zoom in PDFs and pictures redraw the page inside the graphics layer instead of rebuilding it on every
+  movement of a finger.
+- The place in a document is written down only when it has changed, so reading does not make the list do work every second
+  and a half.
+- A file that is opened from the list uses the details that the list already has, instead of asking the system again on
+  the main thread.
+- The web engine, which the first Word, Excel or PowerPoint document needs, is loaded once shortly after the app starts,
+  so that document no longer stalls the screen while it slides in.
+
+### Audio
+- Audio files open on a screen of their own instead of a black video surface: the cover and the tags stored in the file
+  (title, artist, album), a seek bar with the time, play and pause, jumps of 10 seconds back and forward, and a speed
+  button (0.75×, 1×, 1.25×, 1.5×, 2×). A phone held sideways gets a two-column layout. A file without a cover gets the
+  app's own tile.
+- Playback pauses for a phone call or another player and when the headphones are pulled out, and goes on with the screen off.
+- A file that cannot be played says so and offers to open it in another app. A video file that has only sound is shown
+  as audio.
+- Video keeps the usual player controls. There is still no notification or lock-screen player.
+
+### PDF
+- Search now works in PDFs. It lists the pages that have the words, shows the text around the first match with the number
+  of matches on the page, and the previous and next buttons go through those pages. The text is read in the background
+  while the bar is open, so the first results come at once and a long document keeps filling in.
+- Limits: the words are not marked on the page itself, and a PDF made of scanned pictures has no text to search.
+
+### Reliability and small things
+- **About** has a *Copy details* button: the version, the kind of build, the Android version and the device go to the
+  clipboard, ready for a bug report. A debug build says so in that window.
+- Access that Android gave List to a file is given back when the entry is removed for good, when the list is cleared and
+  when an entry is pointed at a file again, so the list of permissions does not grow for ever.
+- Android Lint runs next to every build and Dependabot proposes updates of the libraries and of the GitHub Actions
+  (once a month). Neither can stop a build or a release.
+- Release notes are written here, in this file.
+- New unit tests cover the search, the audio arithmetic and the text that *Copy details* produces.
+
+### Updating
+- The APK is signed with the same key as before, so it installs over the earlier versions and keeps the list, the names
+  and the folders.
+- If the optimiser ever fails in the build, the build falls back to the plain debug APK and says so on the release page.

@@ -1,369 +1,162 @@
-<p align="center"><img src="assets/glass-icon-512.png" width="112" alt="Значок Glass"></p>
+<p align="center">
+  <img src="docs/assets/logo-512.png" width="120" alt="List logo">
+</p>
 
-# Glass
+<h1 align="center">List</h1>
 
-[![CI](https://github.com/sxansee/glass-lang/actions/workflows/ci.yml/badge.svg)](https://github.com/sxansee/glass-lang/actions/workflows/ci.yml)
-[![Лицензия: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Версия 1.0.0](https://img.shields.io/badge/version-1.0.0-brightgreen.svg)](CHANGELOG.md)
+<p align="center">
+  <b>An offline file viewer for Android.</b><br>
+  Documents, spreadsheets, presentations, PDFs, books, archives, pictures, audio and video open right inside the app.<br>
+  No cloud, no account, no ads.
+</p>
 
-> **In English.** Glass is a small statically typed object-oriented teaching language. Its built-in introspection operators
-> (`~layout`, `~vtable`, `~address`, `~heap`, `~gc`) show what other languages hide: how an object is laid out in memory,
-> how a virtual call picks its method, and what the garbage collector does. This repository holds the compiler and a bytecode VM
-> with a mark-and-sweep GC (C++17), a C API, and Glass Studio — a Windows IDE (WPF) with a step debugger, a live heap graph,
-> an object inspector and a built-in course. The documentation is in Russian.
+<p align="center">
+  <a href="../../releases/latest/download/List.apk"><b>Download the APK</b></a>
+  &nbsp;·&nbsp; Android 7.0 or newer
+  &nbsp;·&nbsp; <b>English</b> | <a href="README.ru.md">Русский</a>
+</p>
 
-**Glass — учебный язык программирования, который не прячет, что происходит внутри.** В большинстве языков объект «просто лежит
-где-то в памяти», виртуальный вызов «просто работает», а мусор «просто исчезает». В Glass всё это можно увидеть: в язык встроены
-операторы интроспекции, а среда Glass Studio рисует кучу, стек вызовов и таблицу виртуальных методов прямо во время выполнения.
+---
 
-Язык рассчитан на студентов, которые изучают ООП и устройство компиляторов. Синтаксис свой — `mold` и `facet` вместо `class` и
-`interface`, `fn` с типом после имени, без `new`, без обязательных `;`, — а семантика проверенная, как в C# и Java: статическая
-типизация, наследование, виртуальные методы через vtable, контракты-интерфейсы, сборка мусора.
+## Features
 
-## Что внутри
+- **One app for most files.** PDF, Word, Excel, PowerPoint, OpenDocument, RTF, EPUB, FB2, HTML, Markdown, JSON, plain text and code, ZIP/RAR/7z/TAR archives, pictures, audio and video.
+- **Works offline and keeps files private.** Everything is rendered on the device and nothing is uploaded.
+- **Recent files that are easy to navigate.** Grouped by day, searchable by name, filterable by file type, and sortable by date, name, size or type. Pin the files you need most to the top. Removing an entry can be undone, and files that were moved or deleted are marked instead of failing silently.
+- **Pick up where you left off.** List remembers the page of a PDF, the place in a document, and the moment in a song or video, and returns you there the next time you open the file.
+- **Your own order.** Give a file a clearer name (its extension stays locked) and sort files into colored folders. Names and folders live inside List, so the files on your phone are never touched. To give a file the new name on the phone itself, use **Save a copy…**.
+- **Several files at once.** Long-press a file to select it, then pin, move, share or remove everything selected in one go.
+- **Reading tools.** Search inside documents and PDFs (in a PDF it lists the pages that have the words, shows the text around the match and marks the words on the page), pinch and double-tap zoom, a page counter for PDFs, a *Pages / Reading view* switch for Word files, a *Slides / Text* switch for presentations, sheet tabs for workbooks, and a browsable list of the files inside an archive. Reading options set the text size and can show PDF pages dark in the dark theme.
+- **A proper screen for audio.** Music and recordings open on their own screen instead of a black video surface: the cover and tags stored in the file, a seek bar, 10-second jumps and a speed button. The audio files of the list play one after another, with buttons for the previous and the next track. Music goes on with the screen off and in front of other apps, with the controls in the notification and on the lock screen (this can be switched off in the options of the audio screen). Playback pauses for a phone call or when the headphones are pulled out. Video keeps the usual player controls.
+- **Next and previous file.** A file that was opened from the list has arrows in the top bar and shows its place in the list ("3 / 12"), so a folder of documents or pictures can be read through without going back.
+- **Easy bug reports.** **About** copies the version, the kind of build, the Android version, the device and the key that signed the app. After a crash List offers to copy a report with the error (file paths are removed from it).
+- **Your list is safe.** **Back up the list** saves the names, folders and reading places to a small file; **Restore from a backup** brings them back after a reinstall or on a new phone. If Android loses access to a file, **Locate file…** points the entry at it again without losing its name, folder or place.
+- **Plays well with other apps.** Choose *List* from "Open with" in a file manager or messenger, or share files to it from the system *Share* menu. *Back* returns to the app the file came from. Any file can be shared or opened in another app from the ⋮ menu.
+- **Looks at home on your phone.** Light and dark themes follow the system, and the interface is available in English and Russian (it follows the system language).
 
-- **Компилятор и виртуальная машина** (C++17, без внешних зависимостей): лексер с автоматической расстановкой `;`, парсер,
-  семантический анализ, проверка типов в телах функций, генерация байткода, стековая VM с настоящей виртуальной диспетчеризацией
-  и сборщиком мусора mark-and-sweep.
-- **Интроспекция как часть языка**: `~layout`, `~vtable`, `~address`, `~heap`, `~gc`.
-- **Glass Studio** (Windows, WPF): редактор, пошаговый отладчик, живая схема кучи, инспектор объектов, подсказки по языку и курс
-  из 24 уроков с автоматической проверкой заданий.
-- **C API** (`glass_capi`): тот же компилятор и VM как библиотека. На ней построена Studio, через неё Glass можно встроить в свою программу.
-- **Документация**, в которой каждый пример исполняется настоящей VM в тестах, и шпаргалка для показа.
+## Supported formats
 
-## Быстрый старт
+| Kind | Extensions | How it is shown |
+|---|---|---|
+| PDF | `pdf` | Android's built-in `PdfRenderer` for the pages, [PdfBox-Android](https://github.com/TomRoush/PdfBox-Android) to read their text for the search |
+| Word | `docx` `docm` `dotx` `dotm`, and `doc` `dot` `odt` `rtf` | [docx-preview](https://github.com/VolodymyrBaydalka/docxjs) for page layout and [mammoth](https://github.com/mwilliamson/mammoth.js) for the reading view. Older formats are first converted with the ONLYOFFICE engine (x2t, WebAssembly) |
+| Excel | `xlsx` `xlsm` `xlsb` `xls` `ods` `csv` `tsv` | [SheetJS](https://sheetjs.com/) |
+| PowerPoint | `pptx` `pptm` `ppsx`, and `ppt` `pps` `odp` | [pptx-preview](https://github.com/501351981/pptx-preview) with List's own fixes (see below), plus a text view |
+| Books | `epub` `fb2` | Built-in readers |
+| Archives | `zip` `rar` `7z` `tar` `gz` `tgz` `bz2` `xz` | JSZip and 7-Zip (WebAssembly); files inside can be opened |
+| Text and code | `txt` `md` `json` `xml` `yaml` `log` `srt` `vtt`, source files | Plain view; Markdown and JSON are formatted |
+| Web pages | `html` `htm` `xhtml` | `WebView`. Online resources are blocked unless you allow them |
+| Pictures | `jpg` `png` `webp` `bmp` `heic` `heif` `avif` `gif` `svg` | [Coil](https://coil-kt.github.io/coil/) or the web viewer |
+| Audio and video | `mp3` `m4a` `aac` `ogg` `opus` `flac` `wav`, `mp4` `m4v` `mkv` `webm` `3gp` `mov` | [Media3 ExoPlayer](https://developer.android.com/media/media3/exoplayer); audio has a screen of its own and plays in the background |
 
-**Windows — Glass Studio.** Скачайте `GlassStudio-1.0.0-win-x64.zip` со страницы [Releases](https://github.com/sxansee/glass-lang/releases),
-распакуйте и запустите `GlassStudio\GlassStudio.exe` (устанавливать .NET не нужно). В меню **Файл → Примеры** лежат готовые программы:
-**F5** запускает с отладкой, **Ctrl+F5** просто выполняет. В архиве есть и консольный `glassc.exe`, а также папки `examples` и `docs`.
+### Known limits
 
-**Linux, macOS, WSL — компилятор и VM.** Нужны CMake 3.16+ и компилятор с поддержкой C++17:
+- Password-protected files are not supported; the app shows an error.
+- Only the first 3,000 rows of each sheet and the first 2 million characters of a text file are shown.
+- Legacy formats go through a converter that is not perfect. If it fails, Word and PowerPoint files fall back to their text.
+- Support for HEIC, HEIF and AVIF pictures depends on the Android version.
+- Very large files can be slow, because documents are converted on the phone.
+- A file shared to List from another app usually gets only temporary access from Android. It opens at once, but after the app restarts it may show as "not found" in the list. Use **Locate file…** to point the entry at it again, or open such files with the **Open file** button, which keeps the access.
+- Search in a PDF lists the pages that have the words, shows the text around the first match and marks the words on the pages (the match the bar is at in orange, the rest in yellow). The places of the words are read from the file when a page comes on the screen, so the marks may appear a moment after the page; text that is turned or runs down the page is not marked. A PDF made of scanned pictures has no text to search.
+- Audio goes on in the background only while its screen is open: **Back** or swiping the app away from the recent apps stops it. The title shown for a track is the name of the file (or the name given to it in List); the artist, the album and the cover come from the tags. Video plays inside the app. On some phones the system stops background apps to save power, which can stop the music as well; the usual remedy is to allow List to run without battery restrictions.
+- A backup holds the names and addresses of files, not the files themselves. After restoring on a new phone the entries are shown as "not found" until you point them at the files with **Locate file…**.
 
-```
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build
-./build/glassc examples/shapes.glass
-```
+## Privacy
 
-`glassc` без аргументов запускает интерактивный режим (REPL). Сборка Studio из исходников — в [docs/building.md](docs/building.md).
+List does not collect, store or send anything. Names, folders, pinned files and reading places stay on the device; a backup file is created only when you ask for it and goes where you save it. The `INTERNET` permission exists for one purpose: an HTML file that refers to online images or styles can load them, but only after you choose **Load content from the internet** in the ⋮ menu of that file. Until then every network request from the page is blocked. The `WAKE_LOCK` permission only keeps the processor awake while a recording is playing with the screen off. The `FOREGROUND_SERVICE` permissions and `POST_NOTIFICATIONS` exist only for the playback notification; from Android 13 List asks once for the permission to show it, and the music does not depend on the answer. Backups of app data are turned off.
 
-## Язык за пять минут
+## PowerPoint rendering
 
-### Переменные, типы, функции
+Slides are drawn by [pptx-preview](https://github.com/501351981/pptx-preview), a compact renderer that skips things it does not know. For a real deck the first slide could lose objects, so List extends the library with a small layer of fixes (`app/src/main/assets/pptx/`):
 
-Типы статические, но там, где компилятор выведет их сам, писать необязательно. Деление целых — нацело, `7 / 2.0` — уже вещественное.
+- the 113 preset shapes of the OOXML standard that the library could not draw (it knows only about 70 of 187): stars, hearts, callouts, flow-chart symbols, braces, ribbons, math signs and so on, plus freeform shapes with arcs and curves;
+- objects wrapped in `mc:AlternateContent`, which PowerPoint writes for newer features and the library used to skip;
+- fields such as slide numbers and dates, hyperlink colour, picture outlines (circles and rounded photos), rotation and flips;
+- layout and master objects exported by Google Slides, WPS and LibreOffice, a drawing order that follows the file, and a chart without a title no longer showing placeholder text;
+- one broken object no longer blanks the whole slide.
 
-```glass run
-fn main() {
-    let name = "Glass"
-    let year: int = 2026
-    print("Привет,", name, year)
-    print(7 / 2, 7 % 2, 7 / 2.0)
-}
-```
+If a slide still does not look like it does in PowerPoint, the **Text** tab shows its contents. An issue with the file (or a screenshot of the slide) is the best way to get it fixed.
 
-```output
-Привет, Glass 2026
-3 1 3.5
-```
+## Building
 
-### Объекты, наследование, виртуальный вызов
+Requirements: JDK 17 and the Android SDK with platform 34 (Android Studio sets both up).
 
-`mold` — тип объекта (аналог `class`), объекты создаются без `new`: `Dog("Рекс")`. Ключевые слова `virtual` и `override` включают
-переопределение. Какой `speak()` вызвать, решает таблица виртуальных методов самого объекта, а не тип переменной, — и эту таблицу можно увидеть (`~vtable`, ниже).
+```bash
+./gradlew assembleRelease
+# → app/build/outputs/apk/release/app-release.apk  (optimised with R8, signed with the repository's public key or your own, see Signing key)
 
-```glass run
-mold Animal {
-    let name: string
+./gradlew assembleDebug
+# → app/build/outputs/apk/debug/app-debug.apk      (for development; Android runs it noticeably slower)
 
-    Animal(name: string) {
-        this.name = name
-    }
+./gradlew testDebugUnitTest
+# unit tests of the list, backups, sorting, names, PDF search and marks, the audio queue and arithmetic, zoom arithmetic, file navigation, crash reports and signatures (app/src/test)
 
-    virtual fn speak() -> string {
-        return "..."
-    }
-}
-
-mold Dog : Animal {
-    Dog(name: string) {
-        super(name)
-    }
-
-    override fn speak() -> string {
-        return "Гав!"
-    }
-}
-
-fn describe(a: Animal) {
-    print(a.name, "говорит", a.speak())
-}
-
-fn main() {
-    describe(Animal("Нечто"))
-    describe(Dog("Рекс"))
-}
+./gradlew lintDebug
+# Android Lint report: app/build/reports/lint-results-debug.html
 ```
 
-```output
-Нечто говорит ...
-Рекс говорит Гав!
+**Automatic builds and releases.** `.github/workflows/build.yml` builds the optimised (release) APK on every push and keeps it for 30 days as a workflow artifact (Actions, open the run, section Artifacts). Every release is a separate entry under *Releases*: push a version tag, and the workflow builds the app and publishes it with `List.apk` attached. The release notes are the section of that version in [CHANGELOG.md](CHANGELOG.md) followed by the generated list of changes.
+
+```bash
+git tag v2.5.0
+git push origin v2.5.0
 ```
 
-### facet — контракт без реализации
+A release can also be started by hand from the Actions tab (*Run workflow*, with the version filled in). A version with a suffix, such as `2.5.0-beta.1`, is published as a pre-release. A separate job runs the unit tests next to every build, and another one runs Android Lint; a failing test or a lint finding shows up as a warning and never blocks a release. If the optimiser ever fails, the workflow builds the plain debug APK instead and says so in a warning (the About dialog of such a build says "Debug build"). Dependabot proposes updates of the libraries and of the GitHub Actions once a month. The *Download the APK* link at the top always leads to the newest regular release.
 
-`facet` — список методов, которые обязан реализовать `mold`. Через переменную типа `facet` вызывают метод, не зная конкретного типа.
+### Signing key
 
-```glass run
-facet Shape {
-    fn area() -> double
-}
+By default the APK is signed with the public key stored in the repository (`app/debug.keystore`), so every build installs over the previous one. That key is not a secret: anyone could make an update that the app accepts. The line *Signature* in **About** tells which key signed the installed app.
 
-mold Circle : Shape {
-    let r: double
+A key that only you have is optional:
 
-    Circle(r: double) {
-        this.r = r
-    }
+1. In PowerShell on Windows run `tools\New-ReleaseKey.ps1`. It makes the key and a random password outside the repository (it needs `keytool` from a JDK and says how to install one if it is missing) and walks you through adding two repository secrets (*Settings → Secrets and variables → Actions*): `KEYSTORE_BASE64` and `KEYSTORE_PASSWORD`. Without Windows: `keytool -genkeypair -keystore list-release.p12 -storetype PKCS12 -alias list -keyalg RSA -keysize 3072 -validity 36500`, then put `base64 -w0 list-release.p12` and the password into those secrets. Two more secrets are optional: `KEY_ALIAS` (default `list`) and `KEY_PASSWORD` (default: the keystore password).
+2. Build as usual (push or tag). The run page says whether the APK was signed with your own key and shows the SHA-256 of its certificate; the same fingerprint is in **About**. If the key cannot be opened or the APK was signed with another one, the run stops with a message instead of publishing an APK that would not install.
+3. **Keep the key and its password safe** (a password manager, a private cloud). If they are lost, apps signed with them can never be updated; the repository never needs them, and `.gitignore` keeps key files out of git.
 
-    fn area() -> double {
-        return PI * r * r
-    }
-}
+Switching has a one-time cost. Android never installs an app over one signed with a different key, so the first build with the new key needs a reinstall: choose **Back up the list** in the old version, uninstall List, install the new APK and choose **Restore from a backup**. Names, folders and reading places come back, but Android drops List's access to the files when the app is uninstalled, so each entry shows "not found" until you point it at its file with **Locate file…**. Switch once, only if you want the benefit, and best before the list grows long. Builds without the secrets (forks, Dependabot) are signed with the public key as before.
 
-mold Square : Shape {
-    let side: double
+The package name `app.fileviewer` is kept on purpose, so new versions update existing installations.
 
-    Square(side: double) {
-        this.side = side
-    }
-
-    fn area() -> double {
-        return side * side
-    }
-}
-
-fn main() {
-    let shapes: [Shape] = [Circle(1.0), Square(2.0)]
-    for s in shapes {
-        print(floor(s.area() * 100) / 100.0)
-    }
-}
-```
-
-```output
-3.14
-4.0
-```
-
-### Исключения
-
-`throw`, `try` / `catch` / `finally` и свои типы исключений — потомки `Exception`; ветка `catch` выбирается по типу.
-
-```glass run
-mold NegativeError : Exception {
-    NegativeError(msg: string) {
-        super(msg)
-    }
-}
-
-fn root(x: double) -> double {
-    if x < 0 {
-        throw NegativeError("корень из отрицательного: " + str(x))
-    }
-    return sqrt(x)
-}
-
-fn main() {
-    try {
-        print(root(16.0))
-        print(root(-1.0))
-    } catch e: NegativeError {
-        print("поймали:", e.message)
-    } finally {
-        print("готово")
-    }
-}
-```
-
-```output
-4.0
-поймали: корень из отрицательного: -1.0
-готово
-```
-
-### Массивы и строки
-
-Массивы типизированы, у них есть методы (`sort`, `append`, `pop`, …) и срезы `[от:до:шаг]`; строки неизменяемы, у них тоже есть методы.
-
-```glass run
-fn main() {
-    let xs = [5, 3, 8, 1]
-    xs.sort()
-    print(xs, sum(xs), xs[1:3])
-    let words = "glass is small".split(" ")
-    print(len(words), words[0].upper())
-}
-```
-
-```output
-[1, 3, 5, 8] 17 [3, 5]
-3 GLASS
-```
-
-Остальное — `while`, `for … in`, `break` / `continue`, `static`-члены, модификаторы `public` / `private` / `protected`,
-преобразования типов — на страницах [описания языка](docs/README.md).
-
-## Интроспекция: то, что другие языки прячут
-
-Пять операторов — часть языка, а не отладчика: они работают в обычной программе.
-
-| Оператор | Что показывает |
-|---|---|
-| `объект~layout` | раскладку полей в памяти: имя, смещение (в слотах), размер; поля предка идут первыми |
-| `объект~vtable` | таблицу виртуальных методов: какая реализация вызовется для каждого `virtual`-метода |
-| `объект~address` | адрес объекта в куче как целое число (`hex(…)` покажет его как `0x…`) |
-| `~heap` | снимок всей кучи: все объекты, которые ещё не собраны |
-| `~gc` | запускает сборку мусора немедленно |
-
-```glass run
-mold Animal {
-    let name: string
-    let age: int
-
-    Animal(name: string, age: int) {
-        this.name = name
-        this.age = age
-    }
-
-    virtual fn speak() -> string {
-        return "..."
-    }
-}
-
-mold Dog : Animal {
-    let breed: string
-
-    Dog(name: string, age: int, breed: string) {
-        super(name, age)
-        this.breed = breed
-    }
-
-    override fn speak() -> string {
-        return "Гав!"
-    }
-}
-
-fn main() {
-    let d = Dog("Rex", 3, "Labrador")
-    print(d~layout)
-    print(d~vtable)
-    print(hex(d~address))
-    ~gc
-    print(~heap)
-}
-```
-
-```output
-layout(Dog): name@0 (8 байт), age@1 (8 байт), breed@2 (8 байт)
-vtable(Dog): speak -> Dog.speak
-<адрес>
-heap(1 объект(ов)): Dog@<адрес>
-```
-
-Результаты `~layout`, `~vtable` и `~heap` — тоже объекты кучи: до ближайшего `~gc` следующий `~heap` покажет и их, так что наблюдение
-оставляет след. Подробнее — в разделе [«Интроспекция»](docs/language/introspection.md).
-
-## Glass Studio
-
-Среда для Windows (WPF) показывает то же самое графически и по шагам:
-
-- **Отладчик.** Точки останова (`F9`), шаг с обходом (`F10`), с заходом (`F11`), с выходом (`Shift+F11`), стек вызовов и переменные.
-- **Куча.** Схема объектов и ссылок: корни (локальные переменные и `static`-поля), стрелки между объектами. Объекты, на которые
-  никто не ссылается, подсвечены как мусор; кнопка «Собрать мусор» делает то же, что `~gc` в коде.
-- **Инспектор объекта.** Поля со смещениями, цепочка предков, vtable («кто реально реализует»), адрес.
-- **Редактор.** Подсветка, номера строк, поиск (`Ctrl+F`), размер шрифта для проектора (`Ctrl+колесо`), карточка элемента кода
-  по `F1` или правой кнопке: что это, пример, ссылка на документацию.
-- **Светлая и тёмная темы** («Вид → Тема», в том числе «как в системе»): перекрашивается всё — от редактора и схемы кучи до заголовка окна.
-- **Курс «Glass с нуля».** Шесть глав и 24 урока с заданиями и автоматической проверкой.
-- **Журнал** работы приложения; все данные лежат в `%LOCALAPPDATA%\GlassStudio`.
-
-Как показать всё это на защите или лекции — в [шпаргалке](docs/demo.md): четыре сценария, что нажимать и что при этом видно.
-Подробно о каждой панели — в [описании Studio](docs/ide.md).
-
-## Как это устроено
+## Project layout
 
 ```
-исходник ─► Lexer ─► Parser ─► Sema ─► BodyChecker ─► CodeGen ─► VM + GC
-            токены   AST      объявления  типы тел      байткод    стековая машина, vtable,
-            (с ASI)           и контракты функций                  mark-and-sweep
-                                                           │
-                        C API (glass_capi) ◄───────────────┘
-                              │
-                  Glass.Interop (.NET) ─► Glass.Studio.Core ─► Glass Studio (WPF)
+app/src/main/
+├── java/app/fileviewer/
+│   ├── MainActivity.kt    entry point, navigation between the two screens, files shared to the app
+│   ├── HomeScreen.kt      file list: search, filters, sorting, selection, folders, backup, undo
+│   ├── HomeParts.kt       the pieces of that screen: rows, folder cards, selection bar
+│   ├── ViewerScreen.kt    top bar, actions and the content for each file type
+│   ├── Viewers.kt         PDF, pictures and the WebView host (with reading place)
+│   ├── Zoom.kt            pinch and double-tap zoom of pictures and PDF pages (the fingers, and the state the screens draw from)
+│   ├── Media.kt           audio and video: the player and the audio screen
+│   ├── Playback.kt, PlaybackService.kt   the audio queue and the service that plays it with the screen off
+│   ├── ListApp.kt, CrashLog.kt, AppInfo.kt   crash reports and what About knows about the installation
+│   ├── PdfSearch.kt       search inside a PDF: reading the text of the pages, the search bar
+│   ├── MediaMath.kt, SearchLogic.kt, PdfMarks.kt, Playlist.kt, Navigation.kt, AboutText.kt, CrashReport.kt, Signature.kt, ZoomMath.kt   the pure calculations behind those screens (unit-tested)
+│   ├── Organize.kt        dialogs for renaming files and managing folders
+│   ├── Options.kt         reading options and "Save a copy…"
+│   ├── FileInfo.kt        file types, metadata, share and "open in another app"
+│   ├── Recents.kt         storage of the list: names, folders, pins, reading places
+│   ├── Backup.kt          the backup file (JSON) and its safe reader
+│   ├── Sorting.kt, Names.kt, Settings.kt
+│   └── Theme.kt, Components.kt
+├── assets/
+│   ├── viewer.html, viewer.js    the in-app document viewer
+│   ├── pptx/                     slide-rendering fixes (shapes.js is generated)
+│   └── lib/                      bundled third-party libraries
+└── res/
+    ├── values/, values-ru/       English and Russian strings
+    └── drawable/, mipmap-*/      icons and the launcher logo
+app/src/test/                     unit tests (the list, backups, sorting, names, PDF search, audio queue, zoom, navigation, crash reports)
+tools/                            maintenance scripts (PowerPoint layer; Update-List.ps1 applies a project archive on Windows)
+docs/assets/                      logo
 ```
 
-Как устроены раскладка полей, vtable, кадры вызовов, байткод и сборщик мусора — в [«Архитектуре»](docs/architecture.md).
+**Translations.** Interface strings live in `app/src/main/res/values*/strings.xml`. Texts shown inside documents are in the `T` dictionary at the top of `viewer.js`; the viewer picks its language from the `web_lang` string. To add a language, add a `values-xx/strings.xml` and a matching block in `T`.
 
-## Структура репозитория
+**PowerPoint layer.** After replacing `lib/pptx-preview.umd.js` with a newer upstream build, run `python3 tools/patch_pptx_preview.py` (the patch is idempotent). `pptx/shapes.js` is generated by `python3 tools/gen_pptx_shapes.py`, which reads the preset-shape table that ships with LibreOffice.
 
-```
-glass/
-├── src/              компилятор и VM (C++17): lexer, parser, ast, sema, codegen, bytecode, vm, prelude, capi, repl, util
-├── tests/            тесты ядра (11 наборов на C++)
-├── dotnet/           Glass Studio: Glass.Studio.Core (логика без WPF), Glass.Interop (P/Invoke), Glass.Studio (WPF),
-│                     Glass.Studio.Tests (тесты против настоящей библиотеки)
-├── examples/         примеры программ на Glass (запускаются в тестах)
-├── assets/           значок Glass: SVG-исходники, PNG и .ico (значок GlassStudio.exe)
-├── docs/             документация: язык, Studio, курс, C API, архитектура, шпаргалка для показа
-├── scripts/          test-all.sh и test-all.ps1 (сборка и все тесты), update-docs.py, fuzz.py
-├── .github/          CI и выпуск релизов (GitHub Actions), шаблоны issue и pull request
-├── glass-grammar.md  формальная грамматика языка
-└── CHANGELOG.md · RELEASING.md · CONTRIBUTING.md · LICENSE · THIRD-PARTY-NOTICES.md
-```
+## License
 
-## Сборка и тесты
-
-Для ядра нужны CMake 3.16+ и компилятор C++17 (GCC, Clang, MSVC); для Studio и .NET-тестов — .NET SDK 8 (окно WPF собирается только на Windows).
-
-```
-# Linux, macOS, WSL: сборка и все тесты (C++ и .NET против настоящей библиотеки)
-bash scripts/test-all.sh
-```
-
-```
-# Windows, PowerShell
-.\scripts\test-all.ps1
-```
-
-Тестов больше тысячи на C++ и больше двух тысяч на .NET. Примеры из документации и из этого файла исполняются настоящей VM в тестах, а
-справочник по языку генерируется из тех же записей, что показывают подсказки в Studio, — поэтому документация не расходится с языком.
-Ядро проверялось под AddressSanitizer и UndefinedBehaviorSanitizer и мутационным фаззингом (`scripts/fuzz.py`) — как повторить, описано в
-[docs/building.md](docs/building.md).
-
-## Что пока не входит в версию 1.0
-
-- дженерики (`mold Box<T>`: синтаксис разбирается, но компилятор сразу сообщает, что они не поддерживаются);
-- `switch`, тернарный оператор `?:`, лямбды, оператор `in` (для проверки вхождения есть метод `contains`), интерполяция строк, ввод с клавиатуры;
-- перехват ошибок самой VM: деление на ноль, выход за границы массива, неверное приведение останавливают программу, а `try` / `catch` ловит только исключения-объекты;
-- `return`, `break` и `continue` внутри `try` с `finally`;
-- Glass Studio работает только на Windows; компилятор и VM — на любой платформе с C++17.
-
-Список открытых задач — в [TODO.md](TODO.md), история изменений — в [CHANGELOG.md](CHANGELOG.md).
-
-## Документация
-
-Всё — в папке [docs](docs/README.md):
-
-- **Язык:** [основы](docs/language/basics.md), [управление потоком](docs/language/control-flow.md), [функции](docs/language/functions.md),
-  [строки](docs/language/strings.md), [массивы](docs/language/arrays.md), [объекты](docs/language/objects.md),
-  [исключения](docs/language/exceptions.md), [интроспекция](docs/language/introspection.md); [справочник](docs/reference/language-reference.md)
-  из записей по ключевым словам, типам, встроенным функциям и методам; [формальная грамматика](glass-grammar.md).
-- **Среда:** [Glass Studio](docs/ide.md), [курс](docs/course.md), [шпаргалка для показа](docs/demo.md), [журнал](docs/logging.md).
-- **Устройство:** [архитектура](docs/architecture.md), [C API](docs/c-api.md), [сборка и тесты](docs/building.md).
-
-## Участие и лицензия
-
-Об ошибках и предложениях пишите в [Issues](https://github.com/sxansee/glass-lang/issues). Как собрать проект, прогнать тесты и оформить
-pull request — в [CONTRIBUTING.md](CONTRIBUTING.md); как выпускается версия — в [RELEASING.md](RELEASING.md).
-Лицензия — MIT ([LICENSE](LICENSE)); сторонние компоненты (редактор AvalonEdit) — в [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+[AGPL-3.0](LICENSE). The embedded ONLYOFFICE converter requires it, and it means that anyone you give the app to is entitled to its source code. Third-party components and their licenses are listed in [THIRD_PARTY.txt](THIRD_PARTY.txt) and [LICENSES/](LICENSES).

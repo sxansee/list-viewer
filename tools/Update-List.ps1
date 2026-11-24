@@ -5,16 +5,17 @@
   Запуск (PowerShell):
       powershell -ExecutionPolicy Bypass -File .\Update-List.ps1
 
-  Папка репозитория берётся так: если вы запускаете скрипт из папки с .git, это она, иначе D:\list.
+  Папка репозитория берётся так: если вы запускаете скрипт из папки с .git, это она, иначе D:\my-projects\list.
   Архив ищется в текущей папке, рядом со скриптом, в «Загрузках» и на Рабочем столе (берётся самый новый).
   Свои пути:
-      powershell -ExecutionPolicy Bypass -File .\Update-List.ps1 -Repo "D:\list" -Zip "C:\Users\Имя\Downloads\List-android-project.zip"
+      powershell -ExecutionPolicy Bypass -File .\Update-List.ps1 -Repo "D:\my-projects\list" -Zip "C:\Users\Имя\Downloads\List-android-project.zip"
 
   Что делает скрипт, по порядку:
     1. Проверяет, что папка репозитория настоящая (есть .git), а архив открывается и содержит проект.
     2. Распаковывает архив во временную папку, а НЕ в репозиторий, и проверяет, что всё на месте.
-    3. Копирует текущую папку в соседнюю list-backup-<дата> (отключается ключом -NoBackup).
-    4. Только после этого приводит папку репозитория к виду архива. Папки .git, .gradle, .idea, build
+    3. Копирует текущую папку в папку .backups внутри репозитория: .backups\list-<дата> (в git она не попадает,
+       хранятся 5 последних копий, число меняется ключом -Keep; совсем без копии: -NoBackup).
+    4. Только после этого приводит папку репозитория к виду архива. Папки .git, .gradle, .idea, build, .backups
        и файл local.properties остаются нетронутыми.
     5. Сверяет результат и показывает, сколько файлов изменилось с точки зрения git.
   Скрипт ничего не коммитит и ничего не отправляет в GitHub. Если проверка не прошла, ваша папка не меняется.
@@ -22,7 +23,8 @@
 param(
     [string]$Zip = "",
     [string]$Repo = "",
-    [switch]$NoBackup
+    [switch]$NoBackup,
+    [int]$Keep = 5
 )
 
 $ErrorActionPreference = "Stop"
@@ -77,7 +79,7 @@ function Invoke-Update {
         if (Test-Path -LiteralPath (Join-Path (Get-Location).Path ".git")) {
             $repoGiven = (Get-Location).Path
         } else {
-            $repoGiven = "D:\list"
+            $repoGiven = "D:\my-projects\list"
         }
     }
     if (-not (Test-Path -LiteralPath $repoGiven -PathType Container)) {
@@ -150,29 +152,39 @@ function Invoke-Update {
     }
     Say ("Архив проверен, файлов в проекте: " + $srcFiles.Count) Green
 
-    # 3. Резервная копия
+    # 3. Резервная копия: папка .backups внутри репозитория (она исключена из git и из замены)
     $backup = $null
     if (-not $NoBackup) {
-        $parent = Split-Path -Parent $repoPath
-        $backup = Join-Path $parent ("list-backup-" + (Get-Date -Format "yyyyMMdd-HHmmss"))
+        $backupRoot = Join-Path $repoPath ".backups"
+        $backup = Join-Path $backupRoot ("list-" + (Get-Date -Format "yyyyMMdd-HHmmss"))
         Say "Делаю резервную копию текущей папки..." Gray
-        & robocopy $repoPath $backup /E /XD ".git" ".gradle" ".idea" "build" /NFL /NDL /NJH /NJS /NP | Out-Null
+        & robocopy $repoPath $backup /E /XD ".git" ".gradle" ".idea" "build" ".backups" /NFL /NDL /NJH /NJS /NP | Out-Null
         if ($LASTEXITCODE -ge 8) {
             throw ("Не удалось сделать резервную копию (код " + $LASTEXITCODE + "). Ничего не заменено.")
         }
         Say ("Резервная копия: " + $backup) Green
+        # Старые копии не копятся без конца: остаются последние (по умолчанию 5).
+        $limit = [Math]::Max($Keep, 1)
+        $old = @(Get-ChildItem -LiteralPath $backupRoot -Directory -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -match '^list-\d{8}-\d{6}$' } |
+            Sort-Object Name -Descending |
+            Select-Object -Skip $limit)
+        foreach ($d in $old) {
+            Remove-Item -LiteralPath $d.FullName -Recurse -Force -ErrorAction SilentlyContinue
+            Say ("Удалена старая копия: " + $d.Name) Gray
+        }
     }
 
     # 4. Замена: папка репозитория приводится к виду архива (лишние старые файлы уходят)
     $script:changed = $true
     Say "Заменяю файлы проекта..." Gray
-    & robocopy $src $repoPath /MIR /XD ".git" ".gradle" ".idea" "build" /XF "local.properties" /NFL /NDL /NJH /NJS /NP | Out-Null
+    & robocopy $src $repoPath /MIR /XD ".git" ".gradle" ".idea" "build" ".backups" /XF "local.properties" /NFL /NDL /NJH /NJS /NP | Out-Null
     if ($LASTEXITCODE -ge 8) {
         throw ("Копирование не удалось (код " + $LASTEXITCODE + "). Старая версия лежит в резервной копии: " + $backup)
     }
 
     # 5. Сверка: robocopy в режиме "только список" (/L) ничего не меняет и возвращает 0, если папки совпали
-    & robocopy $src $repoPath /MIR /L /XD ".git" ".gradle" ".idea" "build" /XF "local.properties" /NFL /NDL /NJH /NJS /NP | Out-Null
+    & robocopy $src $repoPath /MIR /L /XD ".git" ".gradle" ".idea" "build" ".backups" /XF "local.properties" /NFL /NDL /NJH /NJS /NP | Out-Null
     if ($LASTEXITCODE -ne 0) {
         throw ("После копирования папка не совпала с архивом (код сверки " + $LASTEXITCODE + "). Старая версия лежит в резервной копии: " + $backup)
     }
@@ -185,7 +197,7 @@ function Invoke-Update {
     Say ""
     Say "Готово: папка приведена к новой версии." Green
     if ($backup) {
-        Say ("Старая версия сохранена в " + $backup + ". Когда убедитесь, что всё в порядке, эту папку можно удалить.") Gray
+        Say ("Старая версия сохранена в " + $backup + ". Папка .backups в git не попадает; когда убедитесь, что всё в порядке, копии можно удалить.") Gray
     }
     if (Get-Command git -ErrorAction SilentlyContinue) {
         $status = Invoke-GitText @("-C", $repoPath, "status", "--short")

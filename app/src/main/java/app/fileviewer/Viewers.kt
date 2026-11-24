@@ -17,27 +17,18 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.calculateZoom
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -53,7 +44,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -61,27 +51,29 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.webkit.WebViewAssetLoader
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -94,6 +86,7 @@ import java.io.ByteArrayInputStream
 import java.nio.ByteBuffer
 import java.nio.charset.CodingErrorAction
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.math.roundToInt
 
 /** The web view of a document. Besides showing it, it can tell how far the page is scrolled. */
 class DocView(c: Context) : WebView(c) {
@@ -172,12 +165,10 @@ fun PdfView(uri: Uri, start: Int, dark: Boolean, holder: PdfHolder, search: PdfS
     val save = rememberUpdatedState(onPage)
     var pdf by remember(uri) { mutableStateOf<PdfRenderer?>(null) }
     var err by remember(uri) { mutableStateOf(false) }
-    var zoom by remember(uri) { mutableFloatStateOf(1f) }
-    var live by remember(uri) { mutableFloatStateOf(1f) }
     var pill by remember(uri) { mutableStateOf(true) }
     val lock = remember(uri) { Mutex() }
     val list = rememberLazyListState(initialFirstVisibleItemIndex = start)
-    val hs = rememberScrollState()
+    val zoom = remember(uri, list) { PagesZoom(list) }
     val cur by remember { derivedStateOf { list.firstVisibleItemIndex + 1 } }
     // The page counter is shown while the document is being scrolled and fades out a moment later.
     LaunchedEffect(list.isScrollInProgress) {
@@ -233,32 +224,31 @@ fun PdfView(uri: Uri, start: Int, dark: Boolean, holder: PdfHolder, search: PdfS
         BoxWithConstraints(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceContainerHigh)) {
             val d = LocalDensity.current
             val base = with(d) { maxWidth.roundToPx() }
-            Box(
-                Modifier.fillMaxSize()
-                    .pointerInput(Unit) { detectTapGestures(onDoubleTap = { zoom = if (zoom > 1.05f) 1f else 2f }) }
-                    .pointerInput(Unit) {
-                        awaitEachGesture {
-                            awaitFirstDown(requireUnconsumed = false)
-                            do {
-                                val e = awaitPointerEvent(PointerEventPass.Initial)
-                                if (e.changes.size > 1) {
-                                    live = (live * e.calculateZoom()).coerceIn(1f / zoom, 3f / zoom)
-                                    e.changes.forEach { it.consume() }
-                                }
-                            } while (e.changes.any { it.pressed })
-                            if (live != 1f) { zoom = (zoom * live).coerceIn(1f, 3f); live = 1f }
+            Box(Modifier.fillMaxSize().clipToBounds().pageGestures(zoom, base.toFloat(), scope)) {
+                // The pages are laid out as they are without zoom, in a list as tall as the screen divided by the scale; the
+                // layer enlarges that list from its top left corner, so it fills the screen again. The scale and the shift are
+                // read while measuring and inside the layer, so a pinch moves the pages without composing them again.
+                Box(
+                    Modifier.fillMaxSize()
+                        .layout { measurable, c ->
+                            val height = (c.maxHeight / zoom.scale).roundToInt().coerceAtLeast(1)
+                            val placeable = measurable.measure(Constraints.fixed(c.maxWidth, height))
+                            layout(c.maxWidth, c.maxHeight) { placeable.place(0, 0) }
                         }
-                    }
-            ) {
-                // The pinch scale is read inside the layer, so a pinch redraws the page without composing it again.
-                Box(Modifier.fillMaxSize().graphicsLayer { scaleX = live; scaleY = live }.horizontalScroll(hs)) {
+                        .graphicsLayer {
+                            transformOrigin = TransformOrigin(0f, 0f)
+                            scaleX = zoom.scale
+                            scaleY = zoom.scale
+                            translationX = zoom.shift.coerceIn(base * (1f - zoom.scale), 0f)
+                        }
+                ) {
                     LazyColumn(
-                        Modifier.width(with(d) { (base * zoom).toDp() }).fillMaxHeight(),
+                        Modifier.fillMaxSize(),
                         state = list,
                         contentPadding = PaddingValues(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(p.pageCount) { i -> PdfPage(p, i, minOf((base * zoom).toInt(), 2000), lock, dark, pdfMarksOf(search, i)) }
+                        items(p.pageCount) { i -> PdfPage(p, i, minOf((base * zoom.sharp).toInt(), 2000), lock, dark, pdfMarksOf(search, i)) }
                     }
                 }
                 AnimatedVisibility(
@@ -315,8 +305,8 @@ fun PdfPage(pdf: PdfRenderer, i: Int, w: Int, lock: Mutex, dark: Boolean, marks:
 @Composable
 fun ZoomImage(uri: Uri, mime: String) {
     val ctx = LocalContext.current
-    var s by remember(uri) { mutableFloatStateOf(1f) }
-    var o by remember(uri) { mutableStateOf(Offset.Zero) }
+    val scope = rememberCoroutineScope()
+    val zoom = remember(uri) { ImageZoom() }
     var failed by remember(uri) { mutableStateOf(false) }
     if (failed) {
         MessageState(
@@ -329,31 +319,13 @@ fun ZoomImage(uri: Uri, mime: String) {
             }
         }
     } else {
+        // The picture is loaded larger than the screen, so that it is still sharp when it is enlarged.
+        val request = remember(uri) { ImageRequest.Builder(ctx).data(uri).size(IMAGE_DECODE_PX).build() }
         AsyncImage(
-            model = uri, contentDescription = null,
-            modifier = Modifier.fillMaxSize()
-                .pointerInput(Unit) {
-                    detectTapGestures(onDoubleTap = { if (s > 1f) { s = 1f; o = Offset.Zero } else { s = 2.5f } })
-                }
-                .pointerInput(Unit) {
-                    detectTransformGestures { _, pan, zoom, _ ->
-                        val ns = (s * zoom).coerceIn(1f, 8f)
-                        // The picture can be moved only as far as its enlarged edges.
-                        val mx = size.width * (ns - 1f) / 2f
-                        val my = size.height * (ns - 1f) / 2f
-                        s = ns
-                        o = if (ns == 1f) Offset.Zero
-                        else Offset((o.x + pan.x).coerceIn(-mx, mx), (o.y + pan.y).coerceIn(-my, my))
-                    }
-                }
-                // Scale and offset are read inside the layer: moving a finger redraws the picture without composing it again.
-                .graphicsLayer {
-                    scaleX = s
-                    scaleY = s
-                    translationX = o.x
-                    translationY = o.y
-                },
+            model = request, contentDescription = null,
+            modifier = Modifier.fillMaxSize().imageGestures(zoom, scope),
             contentScale = ContentScale.Fit,
+            onSuccess = { state -> zoom.natural = state.painter.intrinsicSize },
             onError = { failed = true }
         )
     }
